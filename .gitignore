@@ -20,3 +20,7 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
+/rtc_app/rtc_app/x64
+/rtc_app/rtc_app/rtc_app.vcxproj.user
+/rtc_app/.vs
+/rtc_app/x64
