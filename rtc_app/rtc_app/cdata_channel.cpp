@@ -20,40 +20,68 @@ purpose:		assertion macros
 沿着自己的回忆，一个个的场景忽闪而过，最后发现，我的本心，在我写代码的时候，会回来。
 安静，淡然，代码就是我的一切，写代码就是我本心回归的最好方式，我还没找到本心猎手，但我相信，顺着这个线索，我一定能顺藤摸瓜，把他揪出来。
 ************************************************************************************************/
-#ifndef  _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_
-#define  _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_
-
-#include "api/video/video_frame.h"
-#include "api/video/video_source_interface.h"
-#include "media/base/video_adapter.h"
-#include "media/base/video_broadcaster.h"
-
-
+#include "cdata_channel.h"
+#include "cinput_device.h"
+#include "clog.h"
 namespace chen {
 
-class VideoCaptureSource
-    : public webrtc::VideoSourceInterface<webrtc::VideoFrame> {
- public:
-	 static VideoCaptureSource* Create();
-	 VideoCaptureSource() {}
-  ~VideoCaptureSource() override {}
+	cdata_channel::cdata_channel(webrtc::scoped_refptr<webrtc::DataChannelInterface> data)
+		: dataChannel(data) 
+	{
+		  
+		dataChannel->RegisterObserver(this);
+	}
 
-  void AddOrUpdateSink(webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink,
-                       const webrtc::VideoSinkWants& wants) override;
+	/*cdata_channel::~cdata_channel()
+	{
+		if (dataChannel)
+		{
+			dataChannel->UnregisterObserver();
+			dataChannel->Close();
+		}
+	}*/
+	void cdata_channel::OnStateChange()
+	{
+		webrtc::DataChannelInterface::DataState state = this->dataChannel->state();
 
-  void RemoveSink(webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
-  void VideoOnFrame(const webrtc::VideoFrame& frame);
- protected:
-  // Notify sinkes
-  void OnFrame(const webrtc::VideoFrame& frame);
-
- private:
-  void UpdateVideoAdapter();
-
-  webrtc::VideoBroadcaster broadcaster_;
-  webrtc::VideoAdapter video_adapter_;
-};
-
-
+		switch (state)
+		{
+		case webrtc::DataChannelInterface::DataState::kConnecting:
+			//this->listener->OnConnecting(this);
+			NORMAL_EX_LOG(" , OnConnecting" );
+			break;
+		case webrtc::DataChannelInterface::DataState::kOpen:
+			NORMAL_EX_LOG("id =  , OnOpen" );
+			//this->listener->OnOpen(this);
+			break;
+		case webrtc::DataChannelInterface::DataState::kClosing:
+			//this->listener->OnClosing(this);
+			NORMAL_EX_LOG("id =  , OnClosing" );
+			break;
+		case webrtc::DataChannelInterface::DataState::kClosed:
+			//this->listener->OnClose(this);
+			NORMAL_EX_LOG(" , OnClose" );
+			//m_transport->close();
+			//m_transport->close_dataconsumer(id);
+			if (dataChannel)
+			{
+				dataChannel->UnregisterObserver();
+				dataChannel->Close();
+			}
+			break;
+		default:
+			ERROR_EX_LOG("unknown state %s", webrtc::DataChannelInterface::DataStateString(state));
+			break;
+		}
+	}
+	void cdata_channel::OnMessage(const webrtc::DataBuffer & buffer)
+	{
+		//std::string s = std::string(buffer.data.data<char>(), buffer.data.size());
+		//NORMAL_EX_LOG("DataConsumer -------------- %s -----------------------------------", s.c_str());
+		//this->listener->OnMessage(this, buffer);
+		s_input_device.insert_message(  buffer);
+	}
+	void cdata_channel::OnBufferedAmountChange(uint64_t sent_data_size)
+	{
+	}
 }
-#endif  // _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_

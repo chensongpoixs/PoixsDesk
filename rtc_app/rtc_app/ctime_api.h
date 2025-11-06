@@ -1,9 +1,9 @@
-﻿/***********************************************************************************************
-created: 		2022-01-20
+﻿/********************************************************************
+created:	2019-03-24
 
-author:			chensong
+author:		chensong
 
-purpose:		assertion macros
+purpose:	time tools
 输赢不重要，答案对你们有什么意义才重要。
 
 光阴者，百代之过客也，唯有奋力奔跑，方能生风起时，是时代造英雄，英雄存在于时代。或许世人道你轻狂，可你本就年少啊。 看护好，自己的理想和激情。
@@ -19,41 +19,47 @@ purpose:		assertion macros
 我叫他本心猎手。他可能是和宇宙同在的级别 但是我并不害怕，我仔细回忆自己平淡的一生 寻找本心猎手的痕迹。
 沿着自己的回忆，一个个的场景忽闪而过，最后发现，我的本心，在我写代码的时候，会回来。
 安静，淡然，代码就是我的一切，写代码就是我本心回归的最好方式，我还没找到本心猎手，但我相信，顺着这个线索，我一定能顺藤摸瓜，把他揪出来。
-************************************************************************************************/
-#ifndef  _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_
-#define  _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_
+*********************************************************************/
 
-#include "api/video/video_frame.h"
-#include "api/video/video_source_interface.h"
-#include "media/base/video_adapter.h"
-#include "media/base/video_broadcaster.h"
+#ifndef _C_TIME_API_H
+#define _C_TIME_API_H
+#include "ctime_const.h"
+#include <ctime>
+namespace chen
+{
 
+	namespace ctime_base_api
+	{
+		// ����ʱ��
+		void set_time_zone(int value);
+		// ��Ϊ����ʱ��
+		void set_time_adjust(int value);
 
-namespace chen {
+		time_t get_gmt();
 
-class VideoCaptureSource
-    : public webrtc::VideoSourceInterface<webrtc::VideoFrame> {
- public:
-	 static VideoCaptureSource* Create();
-	 VideoCaptureSource() {}
-  ~VideoCaptureSource() override {}
+		void time_t_to_tm(time_t time, tm& out);
+		tm time_t_to_tm(time_t time);
 
-  void AddOrUpdateSink(webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink,
-                       const webrtc::VideoSinkWants& wants) override;
+		void get_tm(tm& out);
+		tm get_tm();
 
-  void RemoveSink(webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
-  void VideoOnFrame(const webrtc::VideoFrame& frame);
- protected:
-  // Notify sinkes
-  void OnFrame(const webrtc::VideoFrame& frame);
-
- private:
-  void UpdateVideoAdapter();
-
-  webrtc::VideoBroadcaster broadcaster_;
-  webrtc::VideoAdapter video_adapter_;
-};
+		// yyyy-MM-dd HH:mm:ss
+		int time64_datetime_format(const tm& now_tm, char* out, char date_conn, char datetime_conn, char time_conn);
+		//chen::ctime_base_api::time64_datetime_format(::time(NULL), buf, '-', ' ', ':');
+		int time64_datetime_format(time_t time, char* out, char date_conn, char datetime_conn, char time_conn);
+		int datetime_format(char* out, char date_conn, char datetime_conn, char time_conn);
+		time_t get_today_stamp_time64(int hour);
 
 
-}
-#endif  // _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_
+
+
+	
+		long long get_time_ms();
+
+	}  // namespace ctime_base_api
+
+
+
+}  // namespace chen
+
+#endif //!#define _C_TIME_API_H

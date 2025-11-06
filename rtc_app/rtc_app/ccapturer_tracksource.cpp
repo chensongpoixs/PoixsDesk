@@ -1,9 +1,4 @@
-﻿/***********************************************************************************************
-created: 		2022-01-20
-
-author:			chensong
-
-purpose:		assertion macros
+﻿/*
 输赢不重要，答案对你们有什么意义才重要。
 
 光阴者，百代之过客也，唯有奋力奔跑，方能生风起时，是时代造英雄，英雄存在于时代。或许世人道你轻狂，可你本就年少啊。 看护好，自己的理想和激情。
@@ -19,41 +14,4 @@ purpose:		assertion macros
 我叫他本心猎手。他可能是和宇宙同在的级别 但是我并不害怕，我仔细回忆自己平淡的一生 寻找本心猎手的痕迹。
 沿着自己的回忆，一个个的场景忽闪而过，最后发现，我的本心，在我写代码的时候，会回来。
 安静，淡然，代码就是我的一切，写代码就是我本心回归的最好方式，我还没找到本心猎手，但我相信，顺着这个线索，我一定能顺藤摸瓜，把他揪出来。
-************************************************************************************************/
-#ifndef  _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_
-#define  _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_
-
-#include "api/video/video_frame.h"
-#include "api/video/video_source_interface.h"
-#include "media/base/video_adapter.h"
-#include "media/base/video_broadcaster.h"
-
-
-namespace chen {
-
-class VideoCaptureSource
-    : public webrtc::VideoSourceInterface<webrtc::VideoFrame> {
- public:
-	 static VideoCaptureSource* Create();
-	 VideoCaptureSource() {}
-  ~VideoCaptureSource() override {}
-
-  void AddOrUpdateSink(webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink,
-                       const webrtc::VideoSinkWants& wants) override;
-
-  void RemoveSink(webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
-  void VideoOnFrame(const webrtc::VideoFrame& frame);
- protected:
-  // Notify sinkes
-  void OnFrame(const webrtc::VideoFrame& frame);
-
- private:
-  void UpdateVideoAdapter();
-
-  webrtc::VideoBroadcaster broadcaster_;
-  webrtc::VideoAdapter video_adapter_;
-};
-
-
-}
-#endif  // _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_
+*/

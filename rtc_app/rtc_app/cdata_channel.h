@@ -20,40 +20,39 @@ purpose:		assertion macros
 沿着自己的回忆，一个个的场景忽闪而过，最后发现，我的本心，在我写代码的时候，会回来。
 安静，淡然，代码就是我的一切，写代码就是我本心回归的最好方式，我还没找到本心猎手，但我相信，顺着这个线索，我一定能顺藤摸瓜，把他揪出来。
 ************************************************************************************************/
-#ifndef  _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_
-#define  _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_
+#ifndef _C_DATA_CHANNEL_H_
+#define _C_DATA_CHANNEL_H_
 
-#include "api/video/video_frame.h"
-#include "api/video/video_source_interface.h"
-#include "media/base/video_adapter.h"
-#include "media/base/video_broadcaster.h"
-
-
+#include "cnet_types.h"
+#include <map>
+#include <unordered_map>
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <iostream>
+#include <string>
+#include "cnet_types.h"
+#include <api/data_channel_interface.h>
 namespace chen {
 
-class VideoCaptureSource
-    : public webrtc::VideoSourceInterface<webrtc::VideoFrame> {
- public:
-	 static VideoCaptureSource* Create();
-	 VideoCaptureSource() {}
-  ~VideoCaptureSource() override {}
 
-  void AddOrUpdateSink(webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink,
-                       const webrtc::VideoSinkWants& wants) override;
-
-  void RemoveSink(webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
-  void VideoOnFrame(const webrtc::VideoFrame& frame);
- protected:
-  // Notify sinkes
-  void OnFrame(const webrtc::VideoFrame& frame);
-
- private:
-  void UpdateVideoAdapter();
-
-  webrtc::VideoBroadcaster broadcaster_;
-  webrtc::VideoAdapter video_adapter_;
-};
-
-
+	class cdata_channel : public  webrtc::DataChannelObserver , public webrtc::RefCountInterface
+	{
+	public:
+		cdata_channel(webrtc::scoped_refptr<webrtc::DataChannelInterface> data);
+		
+		//~cdata_channel();
+	public:
+		// The data channel state have changed.
+		virtual void OnStateChange() override;
+		//  A data buffer was successfully received.
+		virtual void OnMessage(const webrtc::DataBuffer& buffer) override;
+		// The data channel's buffered_amount has changed.
+		virtual void OnBufferedAmountChange(uint64_t sent_data_size) override;
+	protected:
+	private:
+		webrtc::scoped_refptr<webrtc::DataChannelInterface> dataChannel;
+	};
 }
-#endif  // _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_
+
+#endif //_C_DATA_CHANNEL_H_

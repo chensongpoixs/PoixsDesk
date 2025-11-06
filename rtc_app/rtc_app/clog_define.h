@@ -1,9 +1,9 @@
 ﻿/***********************************************************************************************
-created: 		2022-01-20
+created: 		2019-03-02
 
 author:			chensong
 
-purpose:		assertion macros
+purpose:		log
 输赢不重要，答案对你们有什么意义才重要。
 
 光阴者，百代之过客也，唯有奋力奔跑，方能生风起时，是时代造英雄，英雄存在于时代。或许世人道你轻狂，可你本就年少啊。 看护好，自己的理想和激情。
@@ -20,40 +20,45 @@ purpose:		assertion macros
 沿着自己的回忆，一个个的场景忽闪而过，最后发现，我的本心，在我写代码的时候，会回来。
 安静，淡然，代码就是我的一切，写代码就是我本心回归的最好方式，我还没找到本心猎手，但我相信，顺着这个线索，我一定能顺藤摸瓜，把他揪出来。
 ************************************************************************************************/
-#ifndef  _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_
-#define  _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_
+#ifndef C_LOG_DEFINE_H
+#define C_LOG_DEFINE_H
 
-#include "api/video/video_frame.h"
-#include "api/video/video_source_interface.h"
-#include "media/base/video_adapter.h"
-#include "media/base/video_broadcaster.h"
+namespace chen
+{
+	enum ELogLevelType
+	{
+		ELogLevel_None = 0,
+		ELogLevel_System,
+		ELogLevel_Fatal,
+		ELogLevel_Error,
+		ELogLevel_Warn,
+		ELogLevel_Info,
+		ELogLevel_Debug,
+		ELogLevel_Num,
+	};
 
-
-namespace chen {
-
-class VideoCaptureSource
-    : public webrtc::VideoSourceInterface<webrtc::VideoFrame> {
- public:
-	 static VideoCaptureSource* Create();
-	 VideoCaptureSource() {}
-  ~VideoCaptureSource() override {}
-
-  void AddOrUpdateSink(webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink,
-                       const webrtc::VideoSinkWants& wants) override;
-
-  void RemoveSink(webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
-  void VideoOnFrame(const webrtc::VideoFrame& frame);
- protected:
-  // Notify sinkes
-  void OnFrame(const webrtc::VideoFrame& frame);
-
- private:
-  void UpdateVideoAdapter();
-
-  webrtc::VideoBroadcaster broadcaster_;
-  webrtc::VideoAdapter video_adapter_;
-};
+	enum ELogNameType
+	{
+		ELogName_None = 0,
+		ELogName_Date,
+		ELogName_DateTime,
+		ELogName_AutoDate,
+	};
 
 
-}
-#endif  // _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_
+	enum ELogStorageType
+	{
+		ELogStoragePost				= 0X01, 
+		ELogStorageFile				= 0X02, 
+		ELogStorageFilePost			= 0X03, 
+		ELogStorageScreen			= 0X04, 
+		ELogStorageScreenPost		= 0X05, 
+		ELogStorageScreenFile		= 0X06, 
+		ELogStorageScreenFilePost	= 0X07, 
+	};
+
+}//namespace chen
+
+
+
+#endif  // !#define C_LOG_DEFINE_H_

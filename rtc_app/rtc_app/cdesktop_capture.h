@@ -20,40 +20,58 @@ purpose:		assertion macros
 沿着自己的回忆，一个个的场景忽闪而过，最后发现，我的本心，在我写代码的时候，会回来。
 安静，淡然，代码就是我的一切，写代码就是我本心回归的最好方式，我还没找到本心猎手，但我相信，顺着这个线索，我一定能顺藤摸瓜，把他揪出来。
 ************************************************************************************************/
-#ifndef  _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_
-#define  _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_
-
+#ifndef _C_DESKTOP_CAPTURE_H_
+#define _C_DESKTOP_CAPTURE_H_
 #include "api/video/video_frame.h"
-#include "api/video/video_source_interface.h"
-#include "media/base/video_adapter.h"
-#include "media/base/video_broadcaster.h"
+#include "api/video/video_sink_interface.h"
+#include "desktop_capture_source.h"
+#include "modules/desktop_capture/desktop_capturer.h"
+#include "modules/desktop_capture/desktop_frame.h"
+#include "api/video/i420_buffer.h"
 
 
+#include <thread>
+#include <atomic>
 namespace chen {
 
-class VideoCaptureSource
-    : public webrtc::VideoSourceInterface<webrtc::VideoFrame> {
- public:
-	 static VideoCaptureSource* Create();
-	 VideoCaptureSource() {}
-  ~VideoCaptureSource() override {}
 
-  void AddOrUpdateSink(webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink,
-                       const webrtc::VideoSinkWants& wants) override;
+    class DesktopCapture  :
+        public webrtc::DesktopCapturer::Callback,
+        public webrtc::VideoSinkInterface<webrtc::VideoFrame> {
+    public:
+        static DesktopCapture* Create(size_t target_fps, size_t capture_screen_index);
 
-  void RemoveSink(webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
-  void VideoOnFrame(const webrtc::VideoFrame& frame);
- protected:
-  // Notify sinkes
-  void OnFrame(const webrtc::VideoFrame& frame);
+        ~DesktopCapture() override;
 
- private:
-  void UpdateVideoAdapter();
+        std::string GetWindowTitle() const { return window_title_; }
 
-  webrtc::VideoBroadcaster broadcaster_;
-  webrtc::VideoAdapter video_adapter_;
-};
+        void StartCapture();
+        void StopCapture();
 
+    private:
+        DesktopCapture();
+
+        void Destory();
+
+        void OnFrame(const webrtc::VideoFrame& frame) override {}
+
+        bool Init(size_t target_fps, size_t capture_screen_index);
+
+        void OnCaptureResult(webrtc::DesktopCapturer::Result result,
+            std::unique_ptr<webrtc::DesktopFrame> frame) override;
+
+        std::unique_ptr<webrtc::DesktopCapturer> dc_;
+
+        size_t fps_;
+        std::string window_title_;
+
+        std::unique_ptr<std::thread> capture_thread_;
+        std::atomic_bool start_flag_;
+
+        webrtc::scoped_refptr<webrtc::I420Buffer> i420_buffer_;
+    };
 
 }
-#endif  // _DESKTOP_CAPTURE_DESKTOP_CAPTURER_SOURCE_TEST_H_
+
+
+#endif // _C_DESKTOP_CAPTURE_H_
