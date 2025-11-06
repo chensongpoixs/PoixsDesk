@@ -25,3 +25,5 @@ TestResults.xml
 /rtc_app/.vs
 /rtc_app/x64
 /rtc_app/rtc_app/log
+/build
+/rtc_app
