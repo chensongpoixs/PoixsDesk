@@ -18,8 +18,7 @@
  ******************************************************************************/
 #include "stdafx.h"
 #include "LiveWin32.h"
-#include "LiveWin32Dlg.h"
-#include "rtc_base/win32_socket_init.h"
+#include "LiveWin32Dlg.h" 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -47,8 +46,7 @@ CLiveWin32App::CLiveWin32App()
 // 唯一的一个 CLiveWin32App 对象
 
 CLiveWin32App theApp;
-
-static rtc::WinsockInitializer winsock_init;
+ 
 // CLiveWin32App 初始化
 
 BOOL CLiveWin32App::InitInstance()

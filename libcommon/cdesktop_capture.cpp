@@ -26,8 +26,8 @@ purpose:		assertion macros
 #include "third_party/libyuv/include/libyuv.h"
 #include "clog.h"
 #include "client.h"
+#include "desktop_capture_source.h"
 namespace chen {
-
 
 
     DesktopCapture::DesktopCapture() : dc_(nullptr), start_flag_(false) {}
@@ -58,13 +58,13 @@ namespace chen {
 
     bool DesktopCapture::Init(size_t target_fps, size_t capture_screen_index)
     {
-        // ´°¿Ú
+        // 窗口
         /*dc_ = webrtc::DesktopCapturer::CreateWindowCapturer(
             webrtc::DesktopCaptureOptions::CreateDefault());*/
-            //×ÀÃæ
-        webrtc::DesktopCaptureOptions result;
-        result.set_allow_directx_capturer(true);
-        dc_ = webrtc::DesktopCapturer::CreateScreenCapturer(result);
+            //桌面allow_directx_capturer_
+        webrtc::DesktopCaptureOptions options;
+        options.set_allow_directx_capturer(true);
+        dc_ = webrtc::DesktopCapturer::CreateScreenCapturer(options);
 
         if (!dc_)
             return false;
@@ -87,6 +87,7 @@ namespace chen {
         return true;
     }
 
+
     void DesktopCapture::OnCaptureResult(
         webrtc::DesktopCapturer::Result result,
         std::unique_ptr<webrtc::DesktopFrame> frame) {
@@ -98,47 +99,43 @@ namespace chen {
         cnt++;
         auto timestamp_curr = webrtc::SystemTimeMillis();
         if (timestamp_curr - timestamp > 1000) {
-            //RTC_LOG(LS_INFO) << "FPS: " << cnt;
-            NORMAL_EX_LOG("capture fps = %u", cnt);
+            RTC_LOG(LS_INFO) << "FPS: " << cnt;
             cnt = 0;
             timestamp = timestamp_curr;
         }
 
         // Convert DesktopFrame to VideoFrame
         if (result != webrtc::DesktopCapturer::Result::SUCCESS) {
-          //  RTC_LOG(LS_ERROR) << "Capture frame faiiled, result: " << result;
-           
-            return;
+            RTC_LOG(LS_ERROR) << "Capture frame faiiled, result: " << result;
         }
-        int width = frame->size().width() ;
-        int height = frame->size().height() ;
+        int width = frame->size().width();
+        int height = frame->size().height();
         // int half_width = (width + 1) / 2;
 
         if (!i420_buffer_.get() ||
             i420_buffer_->width() * i420_buffer_->height() < width * height) {
             i420_buffer_ = webrtc::I420Buffer::Create(width, height);
         }
-		//i420_buffer_->set_texture(NULL);
-		//memcpy(i420_buffer_->MutableDataY(), frame->data(), width * height * 4);
-      libyuv::ConvertToI420(frame->data(), 0, i420_buffer_->MutableDataY(),
+        //i420_buffer_->set_texture();
+        libyuv::ConvertToI420(frame->data(), 0, i420_buffer_->MutableDataY(),
             i420_buffer_->StrideY(), i420_buffer_->MutableDataU(),
             i420_buffer_->StrideU(), i420_buffer_->MutableDataV(),
             i420_buffer_->StrideV(), 0, 0, width, height, width,
-            height, libyuv::kRotate0, libyuv::FOURCC_ARGB);  
+            height, libyuv::kRotate0, libyuv::FOURCC_ARGB);
 
 
-        // seting ÂíÁ÷µÄÐÅÏ¢
+        // seting 马流的信息
 
         webrtc::VideoFrame captureFrame =
             webrtc::VideoFrame::Builder()
             .set_video_frame_buffer(i420_buffer_)
-            .set_timestamp_rtp(0)
+            .set_timestamp_rtp(webrtc::TimeMillis())  // set_ntp_time_ms
+            .set_ntp_time_ms(webrtc::TimeMillis())
             .set_timestamp_ms(webrtc::TimeMillis())
             .set_rotation(webrtc::kVideoRotation_0)
             .build();
-       // captureFrame.set_ntp_time_ms(0);
-        s_rtc_client.webrtc_video(captureFrame);
-        //DesktopCaptureSource::OnFrame(captureFrame);
+        // captureFrame.set_ntp_time_ms(0);
+        DesktopCaptureSource::OnFrame(captureFrame);
         // rtc media info 
        /* DesktopCaptureSource::OnFrame(
             webrtc::VideoFrame(i420_buffer_, 0, 0, webrtc::kVideoRotation_0));*/
@@ -158,7 +155,7 @@ namespace chen {
 
             while (start_flag_) {
                 dc_->CaptureFrame();
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000 / 60));
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps_));
             }
             }));
     }
@@ -170,5 +167,4 @@ namespace chen {
             capture_thread_->join();
         }
     }
-  
 }

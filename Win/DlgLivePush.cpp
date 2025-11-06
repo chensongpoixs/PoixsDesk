@@ -18,12 +18,8 @@
 ******************************************************************************/
 #include "stdafx.h"
 #include "DlgLivePush.h"
-
-#include  "libcross_platform_collection_render/desktop_capture/desktop_capture_source.h"
-#include "pc/video_track_source.h"
-#include "libcross_platform_collection_render/desktop_capture/desktop_capture.h"
-#include "http/crtc_global.h"
-
+ 
+#include "pc/video_track_source.h"  
 // DlgRtmpPush 对话框
 
 static const char * capture_type = "摄像头";
@@ -42,61 +38,19 @@ DlgLivePush::DlgLivePush()
 	, m_strAudioDeviceType("")
 	, m_strCaptureType(capture_type)
 	//, m_pAVRtmpstreamer(NULL)
-	, m_pDlgVideoMain(NULL)
-	, video_render_factory_(new libcross_platform_collection_render::cvideo_render_factory())
-	, video_renderer_(nullptr)
-	, capture_track_source_(nullptr)
-	, crtc_media_sink_ (new crtc::CRTCMediaSink())
-	, x264_encoder_(new  libmedia_codec::X264Encoder())
-	, audio_capture_(new libcross_platform_collection_render::AudioCapture(video_render_factory_->worker_thread()))
-	, opus_encoder2_(new libmedia_codec::OpusEncoder2())
+	, m_pDlgVideoMain(NULL) 
 {
-	crtc_media_sink_->SignalTargetTransferRate.connect(this, &DlgLivePush::OnTragetTransferRate);
 	 
-	audio_capture_->SignalAudioCaptureFrame.connect(opus_encoder2_, &libmedia_codec::OpusEncoder2::OnNewMediaFrame);
-	opus_encoder2_->SignalAudioEncoderInfoFrame.connect(crtc_media_sink_->GetPeerConnection(), &libp2p_peerconnection::p2p_peer_connection::SendAudioEncode);
-	x264_encoder_->SignalVideoEncodedImage.connect(crtc_media_sink_->GetPeerConnection(), &libp2p_peerconnection::p2p_peer_connection::SendVideoEncode);
- 
-//	rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
-
-	x264_encoder_->Start();
-//	opus_encoder2_->Start();
 }
 
 DlgLivePush::~DlgLivePush()
 {
-	if (capture_track_source_)
-	{
-		capture_track_source_->Stop();
-		//capture_track_source_ = nullptr;
-	}
-	crtc_media_sink_->SignalTargetTransferRate.disconnect(this );
-
-	audio_capture_->SignalAudioCaptureFrame.disconnect_all( );
-	opus_encoder2_->SignalAudioEncoderInfoFrame.disconnect_all( );
-	x264_encoder_->SignalVideoEncodedImage.disconnect_all(  );
-
-	x264_encoder_->Stop();
-	delete x264_encoder_;
-	x264_encoder_ = nullptr;
-	//rtc::split();
-	if (video_render_factory_)
-	{
-
-		if (video_renderer_)
-		{
-			//delete video_renderer_;
-			//video_renderer_.reset();
-			video_render_factory_->worker_thread()->PostTask(RTC_FROM_HERE, [=] {
-				//video_renderer_.reset();
-				delete video_renderer_;
-			});
-		}
-	
-		delete video_render_factory_;
-		video_render_factory_ = nullptr;
-	}
-	delete crtc_media_sink_;
+	//if (capture_track_source_)
+	//{
+	//	capture_track_source_->Stop();
+	//	//capture_track_source_ = nullptr;
+	//}
+	 
 }
 
 void DlgLivePush::DoDataExchange(CDataExchange* pDX)
@@ -146,7 +100,7 @@ void DlgLivePush::DoDataExchange(CDataExchange* pDX)
 	//ResetContent用于清空组合框中的所有项
 	//pComboBox->ResetContent();
 
-
+#if 0
 	int32_t audio_device_count = audio_capture_->GetAudioDeviceCount();
 	 
 	WCHAR buffer[128] = {0};
@@ -172,7 +126,7 @@ void DlgLivePush::DoDataExchange(CDataExchange* pDX)
 		pComboBox->InsertString(i, m_strAudioDeviceType);
 		
 	}
-
+#endif //
 	// IDC_COMBO1
 	DDX_Control(pDX, IDC_COMBO1, m_comboxType);
 	DDX_Text(pDX, IDC_COMBO1, m_strAudioDeviceType);
@@ -314,7 +268,17 @@ void DlgLivePush::OnBnClickedBtnPush()
 		for (int i = 0; i <= fnlen; i++) {
 			rtc_url[i] = m_strUrl.GetAt(i);
 		}
+		if (!rtc_client_)
+		{
+			rtc_client_ = std::make_unique<chen::crtc_client>();
+			rtc_client_->init(0);
+			std::thread([&]() {
+				rtc_client_->Loop(rtc_url);
+				}).detach();
 
+
+			 
+		}
 		/*char rtc_username[128] = { 0 };
 		memset(rtc_username, 0, 128);
 		GetDlgItem(IDC_RTC_USER)->GetWindowText(m_strUserName);
@@ -322,7 +286,7 @@ void DlgLivePush::OnBnClickedBtnPush()
 		for (int i = 0; i <= fnlen; i++) {
 			rtc_username[i] = m_strUserName.GetAt(i);
 		}
-
+		
 		char rtc_streamname[128] = { 0 };
 		memset(rtc_streamname, 0, 128);
 		GetDlgItem(IDC_RTC_STREAM_NAME)->GetWindowText(m_strStreamName);
@@ -331,21 +295,9 @@ void DlgLivePush::OnBnClickedBtnPush()
 			rtc_streamname[i] = m_strStreamName.GetAt(i);
 		}*/
 		// webrtc://120.48.112.56:8087/crtc/123456
-		std::vector<std::string>  fileds;
-		rtc::split(rtc_url, '/', &fileds);
-		std::string rtc_username;
-		std::string  rtc_streamname;
-		if (fileds.size() < 4)
-		{
-			RTC_LOG(LS_WARNING) << "url parse failed !!! url : " << rtc_url;
-			return;
-		}
-		std::string url = "http://";
-		rtc_username = fileds[fileds.size() -1];
-		rtc_streamname = fileds[fileds.size() - 2];
-		url += fileds[fileds.size() - 3];
-		crtc_media_sink_->set_http_param("push", std::string(url), std::string(rtc_username), std::string(rtc_streamname));
-		crtc_media_sink_->Start();
+#if 0
+		 
+#endif //
 		m_btnRtmp.SetWindowText("推流");
 		//m_pAVRtmpstreamer->SetVideoCapturer(NULL);
 		//m_pAVRtmpstreamer->StopRtmpStream();
@@ -359,14 +311,7 @@ void DlgLivePush::OnBnClickedBtnPush()
 
 
 }
-
-void DlgLivePush::OnTragetTransferRate(crtc::CRTCMediaSink *, const libice::TargetTransferRate & target)
-{
-	if (x264_encoder_)
-	{
-		x264_encoder_->SetBitrate(target.target_rate.kbps());
-	}
-}
+ 
 
 
 
@@ -375,54 +320,7 @@ void DlgLivePush::OnTragetTransferRate(crtc::CRTCMediaSink *, const libice::Targ
 
 void DlgLivePush::OnBnClickedAudioVideo()
 {
-	// TODO: Add your control notification handler code here
-	if (!video_render_factory_)
-	{
-		return;
-	}
-	if (!m_pDlgVideoMain)
-	{
-		return;
-	}
-	char curcapture_type[128] = { 0 };
-	memset(curcapture_type, 0, 128);
-	GetDlgItem(IDC_COMBO2)->GetWindowText(m_strCaptureType);
-	int fnlen = m_strCaptureType.GetLength();
-	for (int i = 0; i <= fnlen; i++) {
-		curcapture_type[i] = m_strCaptureType.GetAt(i);
-	}
-	
-	//if (capture_track_source_)
-	{
-
-		video_render_factory_->signaling_thread()->PostTask(RTC_FROM_HERE, [this, curcapture_type] {
-			CRect rc;
-			m_staticCaptrue.GetWindowRect(rc);
-			capture_track_source_ = libcross_platform_collection_render::CapturerTrackSource::Create(std::string(curcapture_type) == std::string(capture_type));
-			capture_track_source_->set_catprue_callback(x264_encoder_, video_render_factory_->signaling_thread());
-
-			// 需要信令
-			rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_(video_render_factory_->create_video_render("desktop", capture_track_source_));
-			//rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_(
-			//	peer_connection_factory_->CreateVideoTrack(kVideoLabel, video_device));
-			//main_wnd_->StartLocalRenderer(video_track_);
-
-			video_renderer_ = (libcross_platform_collection_render::cvideo_renderer::Create(m_pDlgVideoMain->m_hWnd, rc.Width(), rc.Height(), video_track_));
-			capture_track_source_->StartCapture();
-		});
-		char audio_type[128] = { 0 };
-		memset(audio_type, 0, 128);
-		GetDlgItem(IDC_COMBO1)->GetWindowText(m_strAudioDeviceType);
-		int fnlen = m_strAudioDeviceType.GetLength();
-		for (int i = 0; i <= fnlen; i++) {
-			audio_type[i] = m_strAudioDeviceType.GetAt(i);
-		}
-		 
-		audio_capture_->Start(audio_gurild_[audio_type]);
-		opus_encoder2_->Start();
-	//	m_staticCaptrue.ShowWindow(SW_SHOWNORMAL);
-		//m_pDlgVideoMain->ShowWindow(SW_SHOWNORMAL);
-	}
+	 
 }
 
 

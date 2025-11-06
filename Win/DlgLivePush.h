@@ -24,23 +24,15 @@
 //#include "RtmpHoster.h"
 #include "DlgVideo.h"
 
-
-#include "libcross_platform_collection_render/video_render/cvideo_render_factory.h"
-#include "libcross_platform_collection_render/video_render/cvideo_render.h"
-#include "libcross_platform_collection_render/track_capture/ctrack_capture.h"
-#include "media/crtc_media_sink.h"
-#include "libmedia_codec/x264_encoder.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
-#include "libp2p_peerconnection/cp2p_peerconnection.h"
-#include "libcross_platform_collection_render/audio_capture/audio_capture.h"
-#include "media/crtc_media_sink.h"
-#include "libmedia_codec/audio_codec/opus_encoder.h"
+#include "client.h"
+#include "cdesktop_capture.h"
+ 
 #include <map>
 #define WM_MY_PUSH_MESSAGE (WM_USER + 101)
 
 // DlgVideo 对话框
 class CLiveWin32Dlg;
-class DlgLivePush : public CDialog, public sigslot::has_slots<>//, public RTMPHosterEvent
+class DlgLivePush : public CDialog //, public RTMPHosterEvent
 {
 	DECLARE_DYNAMIC(DlgLivePush)
 
@@ -95,7 +87,7 @@ public:
 public:
 
 
-	void OnTragetTransferRate(crtc::CRTCMediaSink*, const libice::TargetTransferRate& target);
+	//void OnTragetTransferRate(crtc::CRTCMediaSink*, const libice::TargetTransferRate& target);
 
 protected:
 	DlgVideo		*m_pDlgVideoMain;
@@ -107,17 +99,9 @@ public:
 
 private:
 
-	libcross_platform_collection_render::cvideo_render_factory*   video_render_factory_;
-	libcross_platform_collection_render::cvideo_renderer*         video_renderer_;
-
-	rtc::scoped_refptr<libcross_platform_collection_render::CapturerTrackSource>       capture_track_source_;
-
-
-	crtc::CRTCMediaSink *                         crtc_media_sink_;
-
-	 libmedia_codec::X264Encoder *								   x264_encoder_;
-	 libcross_platform_collection_render::AudioCapture* audio_capture_;
-	 libmedia_codec::OpusEncoder2 *                     opus_encoder2_;
+	 
+	std::unique_ptr<chen::crtc_client>			rtc_client_; 
+ 
 	 std::map<std::string, std::string>           audio_gurild_;
 public:
 	//afx_msg void OnEnChangeStreamName();

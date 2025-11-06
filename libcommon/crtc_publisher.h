@@ -64,8 +64,7 @@ namespace chen {
 
 		void set_remoter_description(std::string  sdp);
 
-		void  rtc_texture(void * texture, uint32_t fmt, int width, int height);
-		void onframe(const webrtc::VideoFrame & frame);
+		 
 	protected:
 
 		//
@@ -127,7 +126,7 @@ namespace chen {
 		webrtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
 		 
 
-		  webrtc::scoped_refptr<ProxyVideoTrackSource>   m_video_track_source_ptr;
+		 // webrtc::scoped_refptr<ProxyVideoTrackSource>   m_video_track_source_ptr;
 		webrtc::scoped_refptr < cdata_channel>			m_data_channel_ptr;
 	};
 }

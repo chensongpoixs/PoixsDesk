@@ -92,14 +92,14 @@ namespace chen {
 		~crtc_client();
 	public:
 		bool init(uint32 gpu_index);
-		void Loop(/*const std::string& rtc_ip, uint16_t rtc_port, const std::string& roomName,
+		void Loop(const char * rtc_url/*const std::string& rtc_ip, uint16_t rtc_port, const std::string& roomName,
 			const std::string& clientName , uint32_t reconnect_waittime*/);
 		void destroy();
 
 		void stop();
 
-		bool  rtc_texture(void* texture, uint32 fmt, int32_t width, int32_t height);
-		void webrtc_video(const webrtc::VideoFrame& frame);
+	//	bool  rtc_texture(void* texture, uint32 fmt, int32_t width, int32_t height);
+	//	void webrtc_video(const webrtc::VideoFrame& frame);
 	public:
 		virtual void send_create_offer_sdp(const std::string& sdp, bool create = true);
 		virtual void connect_rtc_failed();
@@ -114,6 +114,7 @@ namespace chen {
 		std::string												m_room_name;
 		std::string												m_user_name;
 		uint32													m_websocket_timer;
+		std::string rtc_url_;
 	};
 
 #define  s_rtc_client chen::csingleton<chen::crtc_client>::get_instance()

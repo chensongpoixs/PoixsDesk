@@ -24,18 +24,18 @@ purpose:		assertion macros
 #define _C_DESKTOP_CAPTURE_H_
 #include "api/video/video_frame.h"
 #include "api/video/video_sink_interface.h"
+#include "desktop_capture_source.h" 
+#include "api/video/i420_buffer.h"
+
+#include "client.h"
+#include <thread>
+#include <atomic>
 #include "desktop_capture_source.h"
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/desktop_frame.h"
-#include "api/video/i420_buffer.h"
-
-
-#include <thread>
-#include <atomic>
 namespace chen {
 
-
-    class DesktopCapture  :
+    class DesktopCapture : public DesktopCaptureSource,
         public webrtc::DesktopCapturer::Callback,
         public webrtc::VideoSinkInterface<webrtc::VideoFrame> {
     public:

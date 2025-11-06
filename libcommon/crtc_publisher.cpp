@@ -57,8 +57,49 @@ purpose:		api_rtc_publish
 #include "api/rtp_transceiver_interface.h"
 #include "media/base/rid_description.h"
 #include "cinput_device.h"
+#include "clog.h"
+#include "cdesktop_capture.h"
 namespace chen {
+	namespace
+	{
 
+
+		class DesktopTrackSource : public webrtc::VideoTrackSource {
+		public:
+			static webrtc::scoped_refptr<DesktopTrackSource> Create(
+				 ) {
+#if 0
+				std::unique_ptr<TestVideoCapturer> capturer =
+					CreateCapturer(task_queue_factory);
+				if (capturer) {
+					capturer->Start();
+					return webrtc::make_ref_counted<DesktopTrackSource>(std::move(capturer));
+				}
+#endif
+				std::unique_ptr<chen::DesktopCapture> capturer(
+					chen::DesktopCapture::Create(25, 0));
+				if (capturer) {
+					capturer->StartCapture();
+					return webrtc::make_ref_counted<DesktopTrackSource>(std::move(capturer));
+				}
+				return nullptr;
+			}
+
+
+		protected:
+			explicit DesktopTrackSource(
+				std::unique_ptr<chen::DesktopCapture> capturer)
+				: VideoTrackSource(/*remote=*/false), capturer_(std::move(capturer)) {
+			}
+
+		private:
+			webrtc::VideoSourceInterface<webrtc::VideoFrame>* source() override {
+				return capturer_.get();
+			}
+			// std::unique_ptr<webrtc::test::VcmCapturer> capturer_;
+			std::unique_ptr<chen::DesktopCapture> capturer_;
+		};
+	}
 	class DummySetSessionDescriptionObserver
 		: public webrtc::SetSessionDescriptionObserver {
 	public:
@@ -188,21 +229,7 @@ namespace chen {
 			DummySetSessionDescriptionObserver::Create(),
 			session_description.release());
 	}
-	void crtc_publisher::rtc_texture(void * texture, uint32_t fmt, int width, int height)
-	{
-		if (m_video_track_source_ptr)
-		{
-			//s_input_device.set_point(width, height);
-			//m_video_track_source_ptr->OnFrameTexture(texture, fmt, width, height);
-		}
-	}
-	void crtc_publisher::onframe(const webrtc::VideoFrame & frame)
-	{
-		if (m_video_track_source_ptr)
-		{
-			m_video_track_source_ptr->OnFrame(frame);
-		}
-	}
+ 
 	void crtc_publisher::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state)
 	{
 		NORMAL_EX_LOG("OnSignalingChange new_state = %d", new_state);
@@ -291,7 +318,7 @@ namespace chen {
 				<< result_or_error.error().message();
 		}
 		//////////////////////////////////////////VIDEO////////////////////////////////////////////////////////////////
-		 m_video_track_source_ptr =  (ProxyVideoTrackSource::Create());
+		webrtc::scoped_refptr<DesktopTrackSource> m_video_track_source_ptr =  (DesktopTrackSource::Create());
 		if (m_video_track_source_ptr)
 		{ 
 

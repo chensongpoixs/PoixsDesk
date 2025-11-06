@@ -88,7 +88,7 @@ namespace chen {
 
 		return true;
 	}
-	void crtc_client::Loop(/*const std::string& rtc_ip, uint16_t rtc_port, const std::string& roomName, const std::string& clientName
+	void crtc_client::Loop(const char* rtc_url/*const std::string& rtc_ip, uint16_t rtc_port, const std::string& roomName, const std::string& clientName
 		, uint32_t reconnect_waittime*/)
 	{
 #if 1
@@ -106,6 +106,7 @@ namespace chen {
 		uint32_t elapse = 0;
 #endif //
 
+		rtc_url_ = rtc_url;
 		while (!m_stoped)
 		{
 			pre_time = std::chrono::steady_clock::now();
@@ -213,23 +214,23 @@ namespace chen {
 	void crtc_client::stop()
 	{
 	}
-	bool crtc_client::rtc_texture(void* texture, uint32 fmt, int32_t width, int32_t height)
-	{
-		if (m_rtc_publisher)
-		{
-			m_rtc_publisher->rtc_texture(texture, fmt, width, height);
-			return true;
-		}
-		return false;
-	}
-	void crtc_client::webrtc_video(const webrtc::VideoFrame& frame)
-	{
-		if (m_rtc_publisher)
-		{
-			m_rtc_publisher->onframe(frame);
-			 
-		} 
-	}
+	//bool crtc_client::rtc_texture(void* texture, uint32 fmt, int32_t width, int32_t height)
+	//{
+	//	if (m_rtc_publisher)
+	//	{
+	//		m_rtc_publisher->rtc_texture(texture, fmt, width, height);
+	//		return true;
+	//	}
+	//	return false;
+	//}
+	//void crtc_client::webrtc_video(const webrtc::VideoFrame& frame)
+	//{
+	//	if (m_rtc_publisher)
+	//	{
+	//		m_rtc_publisher->onframe(frame);
+	//		 
+	//	} 
+	//}
 	void crtc_client::send_create_offer_sdp(const std::string& sdp, bool create)
 	{
 #if 0
@@ -242,7 +243,7 @@ namespace chen {
 		nlohmann::json data = {
 			{"type", "offer"},
 			{ "sdp", sdp},
-			{"streamurl", "webrtc://127.0.0.1/live/chensong"},
+			{"streamurl", rtc_url_},
 			{"clientid",  "chensong"}
 		};
 
@@ -273,8 +274,8 @@ namespace chen {
 				m_rtc_publisher->set_remoter_description(response["sdp"]);
 
 
-				static DesktopCapture* desktop_capture = DesktopCapture::Create(25, 0);
-				desktop_capture->StartCapture();
+				/*static DesktopCapture* desktop_capture = DesktopCapture::Create(25, 0);
+				desktop_capture->StartCapture();*/
 			}
 		}
 		else {

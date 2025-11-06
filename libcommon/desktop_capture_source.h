@@ -31,28 +31,28 @@ purpose:		assertion macros
 
 namespace chen {
 
-class VideoCaptureSource
-    : public webrtc::VideoSourceInterface<webrtc::VideoFrame> {
- public:
-	 static VideoCaptureSource* Create();
-	 VideoCaptureSource() {}
-  ~VideoCaptureSource() override {}
+    class DesktopCaptureSource
+        : public webrtc::VideoSourceInterface<webrtc::VideoFrame> {
+    public:
+        DesktopCaptureSource() {}
+        ~DesktopCaptureSource() override {}
 
-  void AddOrUpdateSink(webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink,
-                       const webrtc::VideoSinkWants& wants) override;
+        void AddOrUpdateSink(webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink,
+            const webrtc::VideoSinkWants& wants) override;
 
-  void RemoveSink(webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
-  void VideoOnFrame(const webrtc::VideoFrame& frame);
- protected:
-  // Notify sinkes
-  void OnFrame(const webrtc::VideoFrame& frame);
+        void RemoveSink(
+            webrtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
 
- private:
-  void UpdateVideoAdapter();
+    protected:
+        // Notify sinkes
+        void OnFrame(const webrtc::VideoFrame& frame);
 
-  webrtc::VideoBroadcaster broadcaster_;
-  webrtc::VideoAdapter video_adapter_;
-};
+    private:
+        void UpdateVideoAdapter();
+
+        webrtc::VideoBroadcaster broadcaster_;
+        webrtc::VideoAdapter video_adapter_;
+    };
 
 
 }
