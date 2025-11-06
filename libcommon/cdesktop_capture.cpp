@@ -129,10 +129,10 @@ namespace chen {
         webrtc::VideoFrame captureFrame =
             webrtc::VideoFrame::Builder()
             .set_video_frame_buffer(i420_buffer_)
-            .set_timestamp_rtp(webrtc::TimeMillis())  // set_ntp_time_ms
-            .set_ntp_time_ms(webrtc::TimeMillis())
-            .set_timestamp_ms(webrtc::TimeMillis())
-            .set_rotation(webrtc::kVideoRotation_0)
+            .set_timestamp_rtp(webrtc::TimeMicros() * 90)  // set_ntp_time_ms
+            .set_ntp_time_ms(webrtc::TimeMicros() * 90)
+            .set_timestamp_ms(webrtc::TimeMicros() * 90)
+            //.set_rotation(webrtc::kVideoRotation_0)
             .build();
         // captureFrame.set_ntp_time_ms(0);
         DesktopCaptureSource::OnFrame(captureFrame);
@@ -155,7 +155,7 @@ namespace chen {
 
             while (start_flag_) {
                 dc_->CaptureFrame();
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps_));
+                 std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps_));
             }
             }));
     }

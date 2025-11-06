@@ -240,6 +240,8 @@ namespace chen {
 			return;
 		}
 #endif //
+
+#if 1
 		nlohmann::json data = {
 			{"type", "offer"},
 			{ "sdp", sdp},
@@ -248,12 +250,7 @@ namespace chen {
 		};
 
 		httplib::Client cli("http://192.168.9.70:8001");
-#if 0
-		nlohmann::json j;
-		j["key1"] = "value1";
-		j["key2"] = 123;
-		std::string json_data = j.dump();  // 将JSON对象转换为字符串
-#endif f//
+ 
 		auto res = cli.Post("/rtc/push", data.dump(), "application/json");
 		if (res && res->status == 200) {
 			std::cout << "Response: " << res->body << std::endl;
@@ -281,6 +278,38 @@ namespace chen {
 		else {
 			std::cout << "Error in response" << std::endl;
 		}
+#else 
+		httplib::Client cli("http://192.168.9.70:80");
+
+		auto res = cli.Post("/index/api/webrtc?app=live&stream=test3433&type=push", sdp, "text/plain");
+		if (res && res->status == 200) {
+			std::cout << "Response: " << res->body << std::endl;
+			NORMAL_EX_LOG("%s", res->body.c_str());
+			nlohmann::json response;
+			try
+			{
+				response = nlohmann::json::parse(res->body);
+			}
+			catch (const std::exception&)
+			{
+				ERROR_EX_LOG("request /rtc/push    [msg = %s] json parse failed !!!", res->body.c_str());
+				return;
+			}
+
+			if (m_rtc_publisher)
+			{
+				m_rtc_publisher->set_remoter_description(response["sdp"]);
+
+
+				/*static DesktopCapture* desktop_capture = DesktopCapture::Create(25, 0);
+				desktop_capture->StartCapture();*/
+			}
+		}
+		else {
+			std::cout << "Error in response" << std::endl;
+		}
+
+#endif //
 	//	m_websocket_mgr.send(request_data.dump());
 	}
 

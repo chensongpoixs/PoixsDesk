@@ -31,7 +31,7 @@ DlgLivePush::DlgLivePush()
 #if 0
 	, m_strUrl(("http://127.0.0.1:8087"))
 #else 
-	, m_strUrl("webrtc://120.48.112.56:8087/crtc/123456")
+	, m_strUrl("webrtc://127.0.0.1/live/41010500002000000003")
 #endif 
 //	, m_strUserName("1234")
 	//, m_strStreamName("crtc")
