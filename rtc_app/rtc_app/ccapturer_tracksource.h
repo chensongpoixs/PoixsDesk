@@ -58,8 +58,8 @@ namespace chen {
 			std::unique_ptr<  VideoCaptureSource> video_source_ptr(VideoCaptureSource::Create( ));
 			if (video_source_ptr)
 			{
-				return webrtc::make_ref_counted<ProxyVideoTrackSource>(std::move(video_source_ptr));
-				//return new webrtc::RefCountedObject<ProxyVideoTrackSource>(std::move(video_source_ptr));
+				return webrtc::make_ref_counted<ProxyVideoTrackSource>( std::move(video_source_ptr));
+				// return new webrtc::RefCountedObject<ProxyVideoTrackSource>(std::move(video_source_ptr));
 			}
 			return nullptr;
 		}
@@ -70,6 +70,8 @@ namespace chen {
 			video_source_ptr->VideoOnFrame(frame);
 			return true;
 		}
+
+		//void Release() {}
 	protected:
 		explicit ProxyVideoTrackSource(
 			std::unique_ptr< VideoCaptureSource> video_source)

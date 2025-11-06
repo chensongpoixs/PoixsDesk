@@ -25,7 +25,7 @@ purpose:		assertion macros
 #include "rtc_base/logging.h"
 #include "third_party/libyuv/include/libyuv.h"
 #include "clog.h"
-
+#include "client.h"
 namespace chen {
 
 
@@ -137,7 +137,7 @@ namespace chen {
             .set_rotation(webrtc::kVideoRotation_0)
             .build();
        // captureFrame.set_ntp_time_ms(0);
-      //  s_client.webrtc_video(captureFrame);
+        s_rtc_client.webrtc_video(captureFrame);
         //DesktopCaptureSource::OnFrame(captureFrame);
         // rtc media info 
        /* DesktopCaptureSource::OnFrame(

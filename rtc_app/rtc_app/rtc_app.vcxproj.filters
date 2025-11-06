@@ -14,6 +14,7 @@
     <ClCompile Include="cutil.cpp" />
     <ClCompile Include="clog.cpp" />
     <ClCompile Include="desktop_capture_source.cc" />
+    <ClCompile Include="client.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ccapturer_tracksource.h" />
@@ -34,5 +35,7 @@
     <ClInclude Include="clog.h" />
     <ClInclude Include="clog_define.h" />
     <ClInclude Include="desktop_capture_source.h" />
+    <ClInclude Include="client.h" />
+    <ClInclude Include="httplib.h" />
   </ItemGroup>
 </Project>

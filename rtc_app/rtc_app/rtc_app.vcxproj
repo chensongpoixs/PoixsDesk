@@ -154,6 +154,7 @@
     <ClCompile Include="cdesktop_capture.cpp" />
     <ClCompile Include="cinput_device.cpp" />
     <ClCompile Include="cinput_device_event.cpp" />
+    <ClCompile Include="client.cpp" />
     <ClCompile Include="clog.cpp" />
     <ClCompile Include="cnet_types.cpp" />
     <ClCompile Include="crtc_publisher.cpp" />
@@ -170,6 +171,7 @@
     <ClInclude Include="cinput_device.h" />
     <ClInclude Include="cinput_device_event.h" />
     <ClInclude Include="cint_point.h" />
+    <ClInclude Include="client.h" />
     <ClInclude Include="clog.h" />
     <ClInclude Include="clog_define.h" />
     <ClInclude Include="cnet_types.h" />
@@ -180,6 +182,7 @@
     <ClInclude Include="ctime_const.h" />
     <ClInclude Include="cutil.h" />
     <ClInclude Include="desktop_capture_source.h" />
+    <ClInclude Include="httplib.h" />
     <ClInclude Include="json.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

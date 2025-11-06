@@ -29,9 +29,10 @@ purpose:		api_rtc_publish
 #include <string>
 #include "cnet_types.h"
 #include "cdata_channel.h"
+#include "ccapturer_tracksource.h"
 namespace chen {
 	//class cclient;
-	class ProxyVideoTrackSource;
+	//class ProxyVideoTrackSource;
 	class crtc_publisher : public webrtc::PeerConnectionObserver  , 
 		public webrtc::CreateSessionDescriptionObserver
 	{
@@ -126,7 +127,7 @@ namespace chen {
 		webrtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
 		 
 
-		webrtc::scoped_refptr<ProxyVideoTrackSource>   m_video_track_source_ptr{nullptr};
+		  webrtc::scoped_refptr<ProxyVideoTrackSource>   m_video_track_source_ptr;
 		webrtc::scoped_refptr < cdata_channel>			m_data_channel_ptr;
 	};
 }

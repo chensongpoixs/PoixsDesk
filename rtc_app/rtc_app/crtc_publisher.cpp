@@ -180,6 +180,7 @@ namespace chen {
 	}
 	void crtc_publisher::set_remoter_description(std::string sdp)
 	{
+		
 		// Replace message type from "offer" to "answer"
 		std::unique_ptr<webrtc::SessionDescriptionInterface> session_description =
 			webrtc::CreateSessionDescription(webrtc::SdpType::kAnswer, sdp);
@@ -264,6 +265,7 @@ namespace chen {
 		{
 			return;  // Already added tracks.
 		}
+#if 0
 		webrtc::DataChannelInit dataChannelInit;
 		dataChannelInit.ordered = true;
 		dataChannelInit.protocol = "UDP";
@@ -276,6 +278,7 @@ namespace chen {
 			 
 		}
 		m_data_channel_ptr = new webrtc::RefCountedObject<cdata_channel>(webrtcDataChannel);
+#endif //
 		///////////////////////////////////////////////AUDIO///////////////////////////////////////////////////////////
 		webrtc::scoped_refptr<webrtc::AudioSourceInterface> audio_source_ptr = peer_connection_factory_->CreateAudioSource(webrtc::AudioOptions());
 
@@ -288,7 +291,7 @@ namespace chen {
 				<< result_or_error.error().message();
 		}
 		//////////////////////////////////////////VIDEO////////////////////////////////////////////////////////////////
-		/*rtc::scoped_refptr<ProxyVideoTrackSource> video_device*/m_video_track_source_ptr = ProxyVideoTrackSource::Create();
+		 m_video_track_source_ptr =  (ProxyVideoTrackSource::Create());
 		if (m_video_track_source_ptr)
 		{ 
 
