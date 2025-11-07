@@ -111,7 +111,8 @@ namespace chen {
         int width = frame->size().width();
         int height = frame->size().height();
         // int half_width = (width + 1) / 2;
-
+       // static int32_t width_ = 800;
+       // static int32_t height_ = 600;
         if (!i420_buffer_.get() ||
             i420_buffer_->width() * i420_buffer_->height() < width * height) {
             i420_buffer_ = webrtc::I420Buffer::Create(width, height);
@@ -129,9 +130,9 @@ namespace chen {
         webrtc::VideoFrame captureFrame =
             webrtc::VideoFrame::Builder()
             .set_video_frame_buffer(i420_buffer_)
-            .set_timestamp_rtp(webrtc::TimeMicros() * 90)  // set_ntp_time_ms
-            .set_ntp_time_ms(webrtc::TimeMicros() * 90)
-            .set_timestamp_ms(webrtc::TimeMicros() * 90)
+            .set_timestamp_rtp(webrtc::TimeMicros()  )  // set_ntp_time_ms
+            .set_ntp_time_ms(webrtc::TimeMicros()  )
+            .set_timestamp_ms(webrtc::TimeMicros()  )
             //.set_rotation(webrtc::kVideoRotation_0)
             .build();
         // captureFrame.set_ntp_time_ms(0);

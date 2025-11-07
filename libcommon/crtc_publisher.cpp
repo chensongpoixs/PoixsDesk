@@ -77,7 +77,7 @@ namespace chen {
 				}
 #endif
 				std::unique_ptr<chen::DesktopCapture> capturer(
-					chen::DesktopCapture::Create(60, 0));
+					chen::DesktopCapture::Create(30, 0));
 				if (capturer) {
 					capturer->StartCapture();
 					return webrtc::make_ref_counted<DesktopTrackSource>(std::move(capturer));
