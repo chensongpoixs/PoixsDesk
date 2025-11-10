@@ -213,7 +213,8 @@ namespace chen {
 		if (m_rtc_publisher)
 		{
 			m_rtc_publisher->Destory();
-			m_rtc_publisher = nullptr;
+			//m_rtc_publisher->Release();
+			//m_rtc_publisher = nullptr;
 		}
 
 		LOG::destroy();

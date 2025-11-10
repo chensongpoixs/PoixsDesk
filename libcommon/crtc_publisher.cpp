@@ -254,21 +254,22 @@ namespace chen {
 
 	void crtc_publisher::Destory()
 	{
-		if (m_video_track_source_ptr)
-		{
-			m_video_track_source_ptr->StopCapture();
-			m_video_track_source_ptr = nullptr;
-		}
+		
 		if (peer_connection_)
 		{
 			peer_connection_->StopRtcEventLog();
-			peer_connection_ = nullptr;
+			 peer_connection_ = nullptr;
 		}
 		if (peer_connection_factory_)
 		{
 			peer_connection_factory_->StopAecDump();
-			peer_connection_factory_->Release();
+			//peer_connection_factory_->Release();
 			peer_connection_factory_ = nullptr;
+		}
+		if (m_video_track_source_ptr)
+		{
+			m_video_track_source_ptr->StopCapture();
+			m_video_track_source_ptr = nullptr;
 		}
 		if (networkThread)
 		{

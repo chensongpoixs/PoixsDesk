@@ -50,7 +50,12 @@ DlgLivePush::~DlgLivePush()
 	//	capture_track_source_->Stop();
 	//	//capture_track_source_ = nullptr;
 	//}
-	s_rtc_client.destroy();
+	if (rtc_client_)
+	{
+		rtc_client_->destroy();
+		rtc_client_.reset();
+	}
+	
 	 
 }
 
