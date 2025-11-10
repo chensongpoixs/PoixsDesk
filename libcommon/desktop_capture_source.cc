@@ -52,8 +52,8 @@ namespace chen {
 
     void DesktopCaptureSource::OnFrame(const webrtc::VideoFrame& frame) {
 
-        //broadcaster_.OnFrame(frame);
-        //return;
+        broadcaster_.OnFrame(frame);
+        return;
         //if (!video_adapter_.AdaptFrameResolution(
         //        frame.width(), frame.height(), frame.timestamp_us() * 1000,
         //        &cropped_width, &cropped_height, &out_width, &out_height)) {

@@ -60,6 +60,7 @@ purpose:		api_rtc_publish
 #include "clog.h"
 #include "cdesktop_capture.h"
 namespace chen {
+	
 	namespace
 	{
 
@@ -84,7 +85,10 @@ namespace chen {
 				}
 				return nullptr;
 			}
-
+			void StopCapture()
+			{
+				capturer_->StopCapture();
+			}
 
 		protected:
 			explicit DesktopTrackSource(
@@ -117,7 +121,7 @@ namespace chen {
 	const char kAudioLabel[] = "audio_label";
 	const char kVideoLabel[] = "video_label";
 	const char kStreamId[] = "stream_id";
-
+	static webrtc::scoped_refptr<DesktopTrackSource>   m_video_track_source_ptr;
 	crtc_publisher::crtc_publisher(crtc_publisher::clistener * callback)
 		: m_callback_ptr(callback)
 	{
@@ -246,6 +250,41 @@ namespace chen {
 
 
 	}
+
+
+	void crtc_publisher::Destory()
+	{
+		if (m_video_track_source_ptr)
+		{
+			m_video_track_source_ptr->StopCapture();
+			m_video_track_source_ptr = nullptr;
+		}
+		if (peer_connection_)
+		{
+			peer_connection_->StopRtcEventLog();
+			peer_connection_ = nullptr;
+		}
+		if (peer_connection_factory_)
+		{
+			peer_connection_factory_->StopAecDump();
+			peer_connection_factory_->Release();
+			peer_connection_factory_ = nullptr;
+		}
+		if (networkThread)
+		{
+			networkThread->Stop();
+		}
+		if (signalingThread)
+		{
+			signalingThread->Stop();
+		}
+		if (workerThread)  
+		{
+			workerThread->Stop();
+		}
+
+
+	}
 	void crtc_publisher::OnRemoveTrack(webrtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver)
 	{
 	}
@@ -318,7 +357,7 @@ namespace chen {
 				<< result_or_error.error().message();
 		}
 		//////////////////////////////////////////VIDEO////////////////////////////////////////////////////////////////
-		webrtc::scoped_refptr<DesktopTrackSource> m_video_track_source_ptr =  (DesktopTrackSource::Create());
+		 m_video_track_source_ptr =  (DesktopTrackSource::Create());
 		if (m_video_track_source_ptr)
 		{ 
 
