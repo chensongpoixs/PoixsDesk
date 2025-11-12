@@ -76,8 +76,8 @@ namespace chen {
 	}
 	void cdata_channel::OnMessage(const webrtc::DataBuffer & buffer)
 	{
-		//std::string s = std::string(buffer.data.data<char>(), buffer.data.size());
-		//NORMAL_EX_LOG("DataConsumer -------------- %s -----------------------------------", s.c_str());
+		std::string s = std::string(buffer.data.data<char>(), buffer.data.size());
+		NORMAL_EX_LOG("DataConsumer -------------- %s -----------------------------------", s.c_str());
 		//this->listener->OnMessage(this, buffer);
 		s_input_device.insert_message(  buffer);
 	}

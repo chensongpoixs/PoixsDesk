@@ -332,13 +332,13 @@ namespace chen {
 		{
 			return;  // Already added tracks.
 		}
-#if 0
+#if 1
 		webrtc::DataChannelInit dataChannelInit;
 		dataChannelInit.ordered = true;
 		dataChannelInit.protocol = "UDP";
 		dataChannelInit.negotiated = false;
 		dataChannelInit.id = 0;
-		webrtc::scoped_refptr<webrtc::DataChannelInterface> webrtcDataChannel  = peer_connection_->CreateDataChannel("rtc", &dataChannelInit);
+		webrtc::scoped_refptr<webrtc::DataChannelInterface> webrtcDataChannel  = peer_connection_->CreateDataChannel("chat", &dataChannelInit);
 		if (!webrtcDataChannel.get())
 		{
 			WARNING_EX_LOG("create data channel failed !!!");
