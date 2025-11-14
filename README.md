@@ -1,14 +1,11 @@
 # LiveRTCDemo
 
  
-![](img/rtc_main.png)
-
-
-## 推流 : WebRTC
  
-![rtc 推流](img/rtc_push.png)
 
-## 拉流: RTSP/WebRTC/GB28181
+ 
+ 
+![云电脑架构图](img/CloudComputerArchitecture.png)
 
-![rtc 拉流](img/gb28181_play.gif)
+ 
 
