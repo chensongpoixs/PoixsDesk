@@ -79,8 +79,8 @@ include_directories(
 )
  
 
-
+add_subdirectory(libdevice)
 add_subdirectory(libcommon)
 add_subdirectory(Win)
-
+add_subdirectory(Tools)
 

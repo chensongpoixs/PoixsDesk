@@ -36,6 +36,7 @@ purpose:		input_device
 #include <mutex>
  
 #include <shellapi.h>
+#include "../libdevice/window/device.h"
 //void CallMessage(HWND hwnd, int nMsgId, int wParam, int lParam)
 //
 //{
@@ -562,7 +563,7 @@ namespace chen {
 		 
 		g_width = PosX;
 		g_height = PosY;
-		
+		button_mouse(MouseDownEvent, Button, false);
 		/*
 		PosX = g_width;
 		PosY = g_height;*/
@@ -635,6 +636,7 @@ namespace chen {
 		 
 		g_width = PosX;
 		g_height = PosY;
+		button_mouse(MouseDownEvent, Button, true);
 		/*
 		PosX = g_width;
 		PosY = g_height;*/
@@ -716,7 +718,7 @@ namespace chen {
 		int32_t height = g_height;
 		g_width = PosX;
 		g_height = PosY;
-
+		abs_mouse(MouseMoveEvent, PosX, PosY);
 		/*
 		PosX = g_width;
 		PosY = g_height;*/
@@ -830,6 +832,7 @@ namespace chen {
 		//ProcessEvent(MouseWheelEvent);
 		g_width = PosX;
 		g_height = PosY;
+		scroll(MouseWheelEvent, Delta);
 		/*PosX = g_width;
 		PosY = g_height;*/
 		 
