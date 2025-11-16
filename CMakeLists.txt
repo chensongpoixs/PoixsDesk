@@ -78,7 +78,7 @@ include_directories(
 	 D:/Work/webrtc_google/src/third_party/abseil-cpp 
 )
  
-
+add_subdirectory(PoixsDesk)
 add_subdirectory(libdevice)
 add_subdirectory(libcommon)
 add_subdirectory(Win)

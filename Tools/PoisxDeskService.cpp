@@ -19,8 +19,20 @@ purpose:		input_device
 我叫他本心猎手。他可能是和宇宙同在的级别 但是我并不害怕，我仔细回忆自己平淡的一生 寻找本心猎手的痕迹。
 沿着自己的回忆，一个个的场景忽闪而过，最后发现，我的本心，在我写代码的时候，会回来。
 安静，淡然，代码就是我的一切，写代码就是我本心回归的最好方式，我还没找到本心猎手，但我相信，顺着这个线索，我一定能顺藤摸瓜，把他揪出来。
-************************************************************************************************/
 
+
+
+for %%I in ("%~dp0") do set "ROOT_DIR=%%~fI"
+ME=PoixsDeskService
+set "SERVICE_BIN=%ROOT_DIR%PoisxDeskService.exe"
+
+
+sc create MyWin32Service binPath= "\"%SERVICE_BIN%\""
+
+sc start MyWin32Service
+
+************************************************************************************************/
+#if 1
 #define WIN32_LEAN_AND_MEAN
 #include <string>
 #include <Windows.h>
@@ -44,7 +56,7 @@ DWORD WINAPI HandlerEx(DWORD dwControl, DWORD dwEventType, LPVOID lpEventData, L
       return NO_ERROR;
 
     case SERVICE_CONTROL_SESSIONCHANGE:
-      // If a new session connects to the console, restart Sunshine
+      // If a new session connects to the console, restart PoixsDesk
       // to allow it to spawn inside the new console session.
       if (dwEventType == WTS_CONSOLE_CONNECT) {
         SetEvent(session_change_event);
@@ -77,12 +89,12 @@ HANDLE CreateJobObjectForChildProcess() {
 
   JOBOBJECT_EXTENDED_LIMIT_INFORMATION job_limit_info = {};
 
-  // Kill Sunshine.exe when the final job object handle is closed (which will happen if we terminate unexpectedly).
-  // This ensures we don't leave an orphaned Sunshine.exe running with an inherited handle to our log file.
+  // Kill PoixsDesk.exe when the final job object handle is closed (which will happen if we terminate unexpectedly).
+  // This ensures we don't leave an orphaned PoixsDesk.exe running with an inherited handle to our log file.
   job_limit_info.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 
-  // Allow Sunshine.exe to use CREATE_BREAKAWAY_FROM_JOB when spawning processes to ensure they can to live beyond
-  // the lifetime of SunshineSvc.exe. This avoids unexpected user data loss if we crash or are killed.
+  // Allow PoixsDesk.exe to use CREATE_BREAKAWAY_FROM_JOB when spawning processes to ensure they can to live beyond
+  // the lifetime of PoixsDeskSvc.exe. This avoids unexpected user data loss if we crash or are killed.
   job_limit_info.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_BREAKAWAY_OK;
 
   if (!SetInformationJobObject(job_handle, JobObjectExtendedLimitInformation, &job_limit_info, sizeof(job_limit_info))) {
@@ -137,14 +149,14 @@ HANDLE DuplicateTokenForSession(DWORD console_session_id) {
 HANDLE OpenLogFileHandle() {
   WCHAR log_file_name[MAX_PATH];
 
-  // Create sunshine.log in the Temp folder (usually %SYSTEMROOT%\Temp)
+  // Create PoixsDesk.log in the Temp folder (usually %SYSTEMROOT%\Temp)
   GetTempPathW(_countof(log_file_name), log_file_name);
   wcscat_s(log_file_name, L"poisxdesk.log");
 
   // The file handle must be inheritable for our child process to use it
   SECURITY_ATTRIBUTES security_attributes = {sizeof(security_attributes), NULL, TRUE};
 
-  // Overwrite the old sunshine.log
+  // Overwrite the old PoixsDesk.log
   return CreateFileW(log_file_name, GENERIC_WRITE, FILE_SHARE_READ, &security_attributes, CREATE_ALWAYS, 0, NULL);
 }
 
@@ -163,7 +175,7 @@ bool RunTerminationHelper(HANDLE console_token, DWORD pid) {
   startup_info.lpDesktop = (LPWSTR) L"winsta0\\default";
 
   // Execute ourselves as a detached process in the user session with the --terminate argument.
-  // This will allow us to attach to Sunshine's console and send it a Ctrl-C event.
+  // This will allow us to attach to PoixsDesk's console and send it a Ctrl-C event.
   PROCESS_INFORMATION process_info;
   if (!CreateProcessAsUserW(console_token, module_path, (LPWSTR) command.c_str(), NULL, NULL, FALSE, CREATE_UNICODE_ENVIRONMENT | DETACHED_PROCESS, NULL, NULL, &startup_info, &process_info)) {
     return false;
@@ -250,7 +262,7 @@ VOID WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv) {
     return;
   }
 
-  // Only allow Sunshine.exe to inherit the log file handle, not all inheritable handles
+  // Only allow PoixsDesk.exe to inherit the log file handle, not all inheritable handles
   UpdateProcThreadAttribute(startup_info.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, &log_file_handle, sizeof(log_file_handle), NULL, NULL);
 
   // Tell SCM we're running (and stoppable now)
@@ -258,7 +270,7 @@ VOID WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv) {
   service_status.dwCurrentState = SERVICE_RUNNING;
   SetServiceStatus(service_status_handle, &service_status);
 
-  // Loop every 3 seconds until the stop event is set or Sunshine.exe is running
+  // Loop every 3 seconds until the stop event is set or PoixsDesk.exe is running
   while (WaitForSingleObject(stop_event, 3000) != WAIT_OBJECT_0) {
     auto console_session_id = WTSGetActiveConsoleSessionId();
     if (console_session_id == 0xFFFFFFFF) {
@@ -278,7 +290,7 @@ VOID WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv) {
       continue;
     }
 
-    // Start Sunshine.exe inside our job object
+    // Start PoixsDesk.exe inside our job object
     UpdateProcThreadAttribute(startup_info.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_JOB_LIST, &job_handle, sizeof(job_handle), NULL, NULL);
 
     PROCESS_INFORMATION process_info;
@@ -290,18 +302,18 @@ VOID WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv) {
 
     bool still_running;
     do {
-      // Wait for the stop event to be set, Sunshine.exe to terminate, or the console session to change
+      // Wait for the stop event to be set, PoixsDesk.exe to terminate, or the console session to change
       const HANDLE wait_objects[] = {stop_event, process_info.hProcess, session_change_event};
       switch (WaitForMultipleObjects(_countof(wait_objects), wait_objects, FALSE, INFINITE)) {
         case WAIT_OBJECT_0 + 2:
           if (WTSGetActiveConsoleSessionId() == console_session_id) {
-            // The active console session didn't actually change. Let Sunshine keep running.
+            // The active console session didn't actually change. Let PoixsDesk keep running.
             still_running = true;
             continue;
           }
-          // Fall-through to terminate Sunshine.exe and start it again.
+          // Fall-through to terminate PoixsDesk.exe and start it again.
         case WAIT_OBJECT_0:
-          // The service is shutting down, so try to gracefully terminate Sunshine.exe.
+          // The service is shutting down, so try to gracefully terminate PoixsDesk.exe.
           // If it doesn't terminate in 20 seconds, we will forcefully terminate it.
           if (!RunTerminationHelper(console_token, process_info.dwProcessId) ||
               WaitForSingleObject(process_info.hProcess, 20000) != WAIT_OBJECT_0) {
@@ -313,11 +325,11 @@ VOID WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv) {
 
         case WAIT_OBJECT_0 + 1:
           {
-            // Sunshine terminated itself.
+            // PoixsDesk terminated itself.
 
             DWORD exit_code;
             if (GetExitCodeProcess(process_info.hProcess, &exit_code) && exit_code == ERROR_SHUTDOWN_IN_PROGRESS) {
-              // Sunshine is asking for us to shut down, so gracefully stop ourselves.
+              // PoixsDesk is asking for us to shut down, so gracefully stop ourselves.
               SetEvent(stop_event);
             }
             still_running = false;
@@ -339,7 +351,7 @@ VOID WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv) {
 
 // This will run in a child process in the user session
 int DoGracefulTermination(DWORD pid) {
-  // Attach to Sunshine's console
+  // Attach to PoixsDesk's console
   if (!AttachConsole(pid)) {
     return GetLastError();
   }
@@ -347,7 +359,7 @@ int DoGracefulTermination(DWORD pid) {
   // Disable our own Ctrl-C handling
   SetConsoleCtrlHandler(NULL, TRUE);
 
-  // Send a Ctrl-C event to Sunshine
+  // Send a Ctrl-C event to PoixsDesk
   if (!GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0)) {
     return GetLastError();
   }
@@ -361,13 +373,13 @@ int main(int argc, char *argv[]) {
     {NULL, NULL}
   };
 
-  // Check if this is a reinvocation of ourselves to send Ctrl-C to Sunshine.exe
+  // Check if this is a reinvocation of ourselves to send Ctrl-C to PoixsDesk.exe
   if (argc == 3 && strcmp(argv[1], "--terminate") == 0) {
     return DoGracefulTermination(atol(argv[2]));
   }
 
   // By default, services have their current directory set to %SYSTEMROOT%\System32.
-  // We want to use the directory where Sunshine.exe is located instead of system32.
+  // We want to use the directory where PoixsDesk.exe is located instead of system32.
   // This requires stripping off 2 path components: the file name and the last folder
   WCHAR module_path[MAX_PATH];
   GetModuleFileNameW(NULL, module_path, _countof(module_path));
@@ -382,3 +394,150 @@ int main(int argc, char *argv[]) {
   // Trigger our ServiceMain()
   return StartServiceCtrlDispatcher(service_table);
 }
+
+
+#else
+
+#include <windows.h>
+#include <iostream>
+
+// 全局变量
+SERVICE_STATUS g_ServiceStatus = { 0 };
+SERVICE_STATUS_HANDLE g_StatusHandle = NULL;
+HANDLE g_ServiceStopEvent = INVALID_HANDLE_VALUE;
+
+// 服务名称
+const char* SERVICE_NAME = "MyWin32Service";
+
+// 函数声明
+VOID WINAPI ServiceMain(DWORD argc, LPSTR* argv);
+VOID WINAPI ServiceCtrlHandler(DWORD CtrlCode);
+DWORD WINAPI ServiceWorkerThread(LPVOID lpParam);
+void ReportServiceStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode, DWORD dwWaitHint);
+
+// 服务主函数
+VOID WINAPI ServiceMain(DWORD argc, LPSTR* argv)
+{
+    // 立即注册服务控制处理器
+    g_StatusHandle = RegisterServiceCtrlHandler(SERVICE_NAME, ServiceCtrlHandler);
+
+    if (!g_StatusHandle)
+    {
+        return;
+    }
+
+    // 设置服务状态为启动中
+    ReportServiceStatus(SERVICE_START_PENDING, NO_ERROR, 3000);
+
+    // 创建服务停止事件
+    g_ServiceStopEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (g_ServiceStopEvent == NULL)
+    {
+        ReportServiceStatus(SERVICE_STOPPED, GetLastError(), 0);
+        return;
+    }
+
+    // 设置服务状态为运行中
+    ReportServiceStatus(SERVICE_RUNNING, NO_ERROR, 0);
+
+    // 创建工作线程执行服务任务
+    HANDLE hThread = CreateThread(NULL, 0, ServiceWorkerThread, NULL, 0, NULL);
+
+    // 等待停止信号
+    WaitForSingleObject(g_ServiceStopEvent, INFINITE);
+
+    // 设置服务状态为已停止
+    ReportServiceStatus(SERVICE_STOPPED, NO_ERROR, 0);
+
+    CloseHandle(g_ServiceStopEvent);
+}
+
+// 服务控制处理器
+VOID WINAPI ServiceCtrlHandler(DWORD CtrlCode)
+{
+    switch (CtrlCode)
+    {
+    case SERVICE_CONTROL_STOP:
+        if (g_ServiceStatus.dwCurrentState != SERVICE_RUNNING)
+            break;
+
+        ReportServiceStatus(SERVICE_STOP_PENDING, NO_ERROR, 0);
+
+        // 触发停止事件
+        SetEvent(g_ServiceStopEvent);
+        break;
+
+    case SERVICE_CONTROL_INTERROGATE:
+        break;
+
+    default:
+        break;
+    }
+}
+
+// 服务工作线程
+DWORD WINAPI ServiceWorkerThread(LPVOID lpParam)
+{
+    // 模拟服务工作
+    while (WaitForSingleObject(g_ServiceStopEvent, 0) != WAIT_OBJECT_0)
+    {
+        // 这里可以执行服务的实际工作
+        Sleep(1000);
+    }
+
+    return ERROR_SUCCESS;
+}
+
+// 报告服务状态
+void ReportServiceStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode, DWORD dwWaitHint)
+{
+    static DWORD dwCheckPoint = 1;
+
+    // 填充服务状态结构
+    g_ServiceStatus.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
+    g_ServiceStatus.dwCurrentState = dwCurrentState;
+    g_ServiceStatus.dwWin32ExitCode = dwWin32ExitCode;
+    g_ServiceStatus.dwWaitHint = dwWaitHint;
+
+    if (dwCurrentState == SERVICE_START_PENDING)
+    {
+        g_ServiceStatus.dwControlsAccepted = 0;
+    }
+    else
+    {
+        g_ServiceStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP;
+    }
+
+    if ((dwCurrentState == SERVICE_RUNNING) || (dwCurrentState == SERVICE_STOPPED))
+    {
+        g_ServiceStatus.dwCheckPoint = 0;
+    }
+    else
+    {
+        g_ServiceStatus.dwCheckPoint = dwCheckPoint++;
+    }
+
+    // 向SCM报告状态
+    SetServiceStatus(g_StatusHandle, &g_ServiceStatus);
+}
+
+// 程序主函数
+int main(int argc, char* argv[])
+{
+    // 定义服务表
+    SERVICE_TABLE_ENTRY ServiceTable[] = {
+        { (LPSTR)SERVICE_NAME, ServiceMain },
+        { NULL, NULL }
+    };
+
+    // 启动服务控制分发器
+    if (!StartServiceCtrlDispatcher(ServiceTable))
+    {
+        std::wcout << L"StartServiceCtrlDispatcher failed: " << GetLastError() << std::endl;
+        return 1;
+    }
+
+    return 0;
+}
+
+#endif //
