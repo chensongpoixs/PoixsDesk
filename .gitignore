@@ -1,33 +1,9 @@
-### AL ###
-#Template for AL projects for Dynamics 365 Business Central
-#launch.json folder
-.vscode/
-#Cache folder
-.alcache/
-#Symbols folder
-.alpackages/
-#Snapshots folder
-.snapshots/
-#Testing Output folder
-.output/
-#Extension App-file
-*.app
-#Rapid Application Development File
-rad.json
-#Translation Base-file
-*.g.xlf
-#License-file
-*.flf
-#Test results file
-TestResults.xml
-/rtc_app/rtc_app/x64
-/rtc_app/rtc_app/rtc_app.vcxproj.user
-/rtc_app/.vs
-/rtc_app/x64
-/rtc_app/rtc_app/log
+/PoixsDesk/build/.vs/PoixsDesk/FileContentIndex/2a51b678-0c0e-4cf6-802c-c64bda5eea53.vsidx
+/PoixsDesk/build/ALL_BUILD.vcxproj
 /build
-/rtc_app
-/PoixsDesk.7z
-/~$云电脑平台架构.pptx
-/Tools/build
-/PoixsDesk/build
+
+/PoixsDesk/build/
+/PoixsDesk/build/.vs/PoixsDesk/v17/Solution.VC.db
+/Tools/build/
+/Tools/build/.vs/poixs_desk_tools/v17/.suo
+/--.gitignore
