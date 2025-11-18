@@ -32,7 +32,7 @@ purpose:		input_device
 #include <future>
 #include <chrono>
 #include "utility.h"
-
+#include "../libcommon/client.h"
 #include <Windows.h>
 #include <tchar.h>
 #include <process.h>
@@ -83,6 +83,25 @@ BOOL WINAPI  ConsoleCtrlHandler(DWORD type)
 int main(int argc, char *argv[])
 {
 
+    printf("[argc  = %u][url = %s]\n", argc, argv[1]);
+
+    /*std::unique_ptr<chen::crtc_client>			rtc_client_;
+    rtc_client_ = std::make_unique<chen::crtc_client>();
+    rtc_client_->init(0);
+    std::thread([&]() {
+        rtc_client_->Loop(argv[1]);
+        }).detach();*/
+    s_rtc_client.init(0);
+    s_rtc_client.Loop(argv[1]);
+
+
+    while (true)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+
+    return EXIT_SUCCESS;
 #ifdef _WIN32
 	setlocale(LC_ALL, "C");
 #endif

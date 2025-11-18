@@ -107,6 +107,8 @@ namespace chen {
 #endif //
 
 		rtc_url_ = rtc_url;
+		//rtc_url_ = "webrtc:://127.0.0.1/live/test2222";
+		printf("rtc_url=%s\n", rtc_url_.c_str());
 		while (!m_stoped)
 		{
 			pre_time = std::chrono::steady_clock::now();
