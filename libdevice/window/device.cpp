@@ -65,16 +65,19 @@ namespace chen {
 
 		mi.dwFlags =
 			MOUSEEVENTF_MOVE |
-			MOUSEEVENTF_ABSOLUTE |
+			MOUSEEVENTF_ABSOLUTE;// |
 
 			// MOUSEEVENTF_VIRTUALDESK maps to the entirety of the desktop rather than the primary desktop
-			MOUSEEVENTF_VIRTUALDESK;
+			//MOUSEEVENTF_VIRTUALDESK;
 
 		//auto scaled_x = std::lround((x + touch_port.offset_x) * ((float)target_touch_port.width / (float)touch_port.width));
 		//auto scaled_y = std::lround((y + touch_port.offset_y) * ((float)target_touch_port.height / (float)touch_port.height));
-
-		mi.dx = x; //scaled_x;
-		mi.dy = y; //scaled_y;
+		double fx = x * (65535.0f / 1920);
+		double fy = y * (65535.0f / 1080);
+		mi.dx = fx;
+		mi.dy = fy;
+		//mi.dx = x; //scaled_x;
+		//mi.dy = y; //scaled_y;
 
 		send_input(i);
 	}
@@ -86,30 +89,37 @@ namespace chen {
 		auto &mi = i.mi;
 
 		mi.dwFlags = MOUSEEVENTF_MOVE;
-		mi.dx = deltaX;
-		mi.dy = deltaY;
-
+		//mi.dx = deltaX;
+		//mi.dy = deltaY;
+		double fx = deltaX * (65535.0f / 1920);
+		double fy = deltaY * (65535.0f / 1080);
+		mi.dx = fx;
+		mi.dy = fy;
 		send_input(i);
 	}
 
 
-	void button_mouse(FEvent &input, int button, bool release)
+	void button_mouse(FEvent &input, int32_t posX, int32_t posY, int button, bool release)
 	{
 		INPUT i{};
 
 		i.type = INPUT_MOUSE;
 		auto &mi = i.mi;
 
-		if (button == 1) {
+		double fx = posX * (65535.0f / 1920);
+		double fy = posY * (65535.0f / 1080);
+		mi.dx = fx;
+		mi.dy = fy;
+		if (button == 0) {
 			mi.dwFlags = release ? MOUSEEVENTF_LEFTUP : MOUSEEVENTF_LEFTDOWN;
 		}
-		else if (button == 2) {
+		else if (button == 1) {
 			mi.dwFlags = release ? MOUSEEVENTF_MIDDLEUP : MOUSEEVENTF_MIDDLEDOWN;
 		}
-		else if (button == 3) {
+		else if (button == 2) {
 			mi.dwFlags = release ? MOUSEEVENTF_RIGHTUP : MOUSEEVENTF_RIGHTDOWN;
 		}
-		else if (button == 4) {
+		else if (button == 3) {
 			mi.dwFlags = release ? MOUSEEVENTF_XUP : MOUSEEVENTF_XDOWN;
 			mi.mouseData = XBUTTON1;
 		}

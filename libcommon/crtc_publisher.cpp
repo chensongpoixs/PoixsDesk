@@ -338,7 +338,7 @@ namespace chen {
 		dataChannelInit.protocol = "UDP";
 		dataChannelInit.negotiated = false;
 		dataChannelInit.id = 0;
-		webrtc::scoped_refptr<webrtc::DataChannelInterface> webrtcDataChannel  = peer_connection_->CreateDataChannel("chat", &dataChannelInit);
+		webrtc::scoped_refptr<webrtc::DataChannelInterface> webrtcDataChannel  = peer_connection_->CreateDataChannel("inputdevice", &dataChannelInit);
 		if (!webrtcDataChannel.get())
 		{
 			WARNING_EX_LOG("create data channel failed !!!");

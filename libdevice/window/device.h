@@ -34,7 +34,7 @@ namespace chen
 	void abs_mouse(FEvent &input, float x, float y);
 
 	void move_mouse(FEvent &input, int deltaX, int deltaY);
-	void button_mouse(FEvent &input, int button, bool release);
+	void button_mouse(FEvent &input, int32_t posX, int32_t posY, int button, bool release);
 
 	void scroll(FEvent &input, int distance);
 

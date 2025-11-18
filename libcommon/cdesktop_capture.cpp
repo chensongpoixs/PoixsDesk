@@ -26,6 +26,7 @@ purpose:		assertion macros
 #include "third_party/libyuv/include/libyuv.h"
 #include "clog.h"
 #include "client.h"
+#include "cinput_device.h"
 #include "desktop_capture_source.h"
 namespace chen {
 
@@ -124,7 +125,7 @@ namespace chen {
             i420_buffer_->StrideV(), 0, 0, width, height, width,
             height, libyuv::kRotate0, libyuv::FOURCC_ARGB);
 
-
+        
         // seting 马流的信息
 
         webrtc::VideoFrame captureFrame =
@@ -135,6 +136,9 @@ namespace chen {
             .set_timestamp_ms(webrtc::TimeMicros()  )
             //.set_rotation(webrtc::kVideoRotation_0)
             .build();
+
+
+        s_input_device.set_point(width, height);
         // captureFrame.set_ntp_time_ms(0);
         DesktopCaptureSource::OnFrame(captureFrame);
         // rtc media info 

@@ -186,61 +186,17 @@ namespace chen {
 		
 		M_INPUT_DEVICE_MAP::iterator iter =  m_input_device.find(MsgType);
 		if (iter == m_input_device.end())
-		{
-			//RTC_LOG(LS_ERROR) << "input_device not find id = " << MsgType;
-			//log --->  not find type 
+		{ 
 			ERROR_EX_LOG("input_device msg_type = %d not find failed !!!", MsgType);
 			return false;
 		}
-		
-		/*if (MsgType != MouseEnter)
-		{
-			std::map<std::string, std::map<uint32, cmouse_info>>::const_iterator consumer_iter = m_all_consumer.find(consumer_id);
-			if (consumer_iter == m_all_consumer.end())
-			{
-				WARNING_EX_LOG("consumer_id = %s not Enter !!!", consumer_id.c_str());
-				return false;
-			}
-
-		} */
-		//NORMAL_EX_LOG("move type =%d", MsgType);
+		 
 		std::chrono::steady_clock::time_point cur_time_ms;
 		std::chrono::steady_clock::time_point pre_time = std::chrono::steady_clock::now();
 		std::chrono::steady_clock::duration dur;
 		std::chrono::microseconds microseconds;
 		uint32_t elapse = 0;
-		//备往：尽管GetFocus返回NULL，但可能另一线程的队列与拥有输入焦点的窗口相关。
-		//便用GetForeyroundWindow函数来获得用户目前工作的窗口。
-		//可以使用AttachThreadlnPut函数把线程的消息队列与另一线程的窗口关联起来。
-		
-
-		//HWND wnd = GetFocus();
-
-
-
-
-
-		
-		   //说明：SetForegroundWindow在debug模式一直成功，非debug模式会有失败的情况，解决方法是利用AttachThreadInput
-        //AttachThreadInput这个函数可以使两个线程的输入队列共享。 
-        //如果我们把当前的焦点的输入队列跟我们要显示的窗口的输入队列共享，
-        //我们就可以让我们的窗口SetForegroundWindow 成功，然后成功 获得焦点，显示在前台
-		/*
-		HWND hForgroundWnd = GetForegroundWindow(); \
-						DWORD dwForeID = ::GetWindowThreadProcessId(hForgroundWnd, NULL); \
-	DWORD dwCurID = ::GetCurrentThreadId();		\
-	::AttachThreadInput(dwCurID, dwForeID, TRUE);	\
-	::ShowWindow(g_wnd, SW_SHOWNORMAL);		\
-	::SetForegroundWindow(g_wnd);	\
-	::AttachThreadInput(dwCurID, dwForeID, FALSE);	\
-		*/
-       /*
-	   SetWindowPos(handle, -1, 0, 0, 0, 0, 0x001 | 0x002 | 0x040);    //将这个窗口永远置于最上面
-    //---------------------------在需要激活窗体的地方添加如下代码-----------------------//
-    PostMessage(handle, WM_LBUTTONDOWN, 0, 0);
-    PostMessage(handle, WM_LBUTTONUP, 0, 0);
-	   */
-		//BringWindowToTop();
+		  
 
 		 (this->*(iter->second))(Data, Size);
 		 cur_time_ms = std::chrono::steady_clock::now();
@@ -550,25 +506,14 @@ namespace chen {
 		GET(FPosType, PosX);
 		GET(FPosType, PosY);
 		checkf(Size == 0, TEXT("%d"), Size);
-		//UE_LOG(PixelStreamerInput, Verbose, TEXT("mouseDown at (%d, %d), button %d"), PosX, PosY, Button);
-		// log mousedown -> log posX , poxY -> Button 
-		//NORMAL_EX_LOG("Button = %d, PosX = %d, PoxY = %d", Button, PosX, PosY );
-		_UnquantizeAndDenormalize(PosX, PosY);
-
-		FEvent MouseDownEvent(EventType::MOUSE_DOWN);
-		MouseDownEvent.SetMouseClick(Button, PosX, PosY);
-		uint32 active_type;
-
-		MouseDownEvent.GetMouseClick(active_type, PosX, PosY);
 		 
+		_UnquantizeAndDenormalize(PosX, PosY);
+		NORMAL_EX_LOG("Button = %d, PosX = %d, PoxY = %d", Button, PosX, PosY);
 		g_width = PosX;
 		g_height = PosY;
-		button_mouse(MouseDownEvent, Button, false);
-		/*
-		PosX = g_width;
-		PosY = g_height;*/
-		NORMAL_EX_LOG("g_width = %d, g_height = %d, active_type = %d, PosX = %d, PoxY = %d", g_width, g_height, active_type, PosX, PosY );
-		//g_move_init = true;
+		FEvent MouseDownEvent(EventType::MOUSE_DOWN);
+		button_mouse(MouseDownEvent, PosX, PosY, Button, false);
+		 
 		 
 		return true;
 	
@@ -623,26 +568,16 @@ namespace chen {
 		GET(FButtonType, Button);
 		GET(FPosType, PosX);
 		GET(FPosType, PosY);
-		checkf(Size == 0, TEXT("%d"), Size);
-		//UE_LOG(PixelStreamerInput, Verbose, TEXT("mouseUp at (%d, %d), button %d"), PosX, PosY, Button);
-		// log mouseup posx, posy, button 
-		//NORMAL_EX_LOG("Button = %u, PosX = %d, PoxY = %d ", Button, PosX, PosY );
+		checkf(Size == 0, TEXT("%d"), Size); 
 		_UnquantizeAndDenormalize(PosX, PosY);
-		//NORMAL_EX_LOG("PosX = %d, PoxY = %d", PosX, PosY );
-		FEvent MouseDownEvent(EventType::MOUSE_UP);
-		MouseDownEvent.SetMouseClick(Button, PosX, PosY);
-		uint32  active_type;
-		MouseDownEvent.GetMouseClick(active_type, PosX, PosY);
-		 
+		
+		FEvent MouseDownEvent(EventType::MOUSE_UP); 
+		NORMAL_EX_LOG("Button = %u, PosX = %d, PoxY = %d", Button,  PosX, PosY );
 		g_width = PosX;
 		g_height = PosY;
-		button_mouse(MouseDownEvent, Button, true);
-		/*
-		PosX = g_width;
-		PosY = g_height;*/
-		NORMAL_EX_LOG("g_width = %d, g_height = %d, active_type = %d, PosX = %d, PoxY = %d", g_width, g_height,  active_type, PosX, PosY );
-		//ProcessEvent(MouseDownEvent);
-		//g_move_init = false;
+		button_mouse(MouseDownEvent, PosX, PosY, Button, true);
+ 
+		 
 	 
 		return true;
 	}
@@ -701,30 +636,19 @@ namespace chen {
 		GET(FPosType, PosY);
 		GET(FDeltaType, DeltaX);
 		GET(FDeltaType, DeltaY);
-		checkf(Size == 0, TEXT("%d"), Size);
-		//UE_LOG(PixelStreamerInput, Verbose, TEXT("mouseMove to (%d, %d), delta (%d, %d)"), PosX, PosY, DeltaX, DeltaY);
-		// log mousemove to posx, posy, [DeltaX, DeltaY]
-		//NORMAL_EX_LOG("PosX = %d, PoxY = %d, DeltaY = %d", PosX, PosY, DeltaY);
-		
-		//RTC_LOG(LS_INFO) << "mousemove -->  PosX = " << PosX << ", PoxY = " << PosY << ", DeltaY = " << DeltaY;
+		checkf(Size == 0, TEXT("%d"), Size); 
+		NORMAL_EX_LOG("input [w: %d, h: %d] posx:%s, Posy:%s", m_int_point.X, m_int_point.Y, 
+			std::to_string(PosX).c_str(), std::to_string(PosY).c_str());
 		_UnquantizeAndDenormalize(PosX, PosY);
-		_UnquantizeAndDenormalize(DeltaX, DeltaY);
-		//RTC_LOG(LS_INFO) << "mousemove <==>  PosX = " << PosX << ", PoxY = " << PosY << ", DeltaY = " << DeltaY;
-		NORMAL_EX_LOG("g_width = %d, g_height = %d, ---> PosX = %d, PoxY = %d, DeltaY = %d", g_width, g_height, PosX, PosY, DeltaY);
+		_UnquantizeAndDenormalize(DeltaX, DeltaY); 
+		NORMAL_EX_LOG("---> PosX = %d, PoxY = %d, DeltaY = %d", PosX, PosY, DeltaY);
 		
 		FEvent MouseMoveEvent(EventType::MOUSE_MOVE);
-		MouseMoveEvent.SetMouseDelta(PosX, PosY, DeltaX, DeltaY);
-		int32_t width = g_width;
-		int32_t height = g_height;
+		 
 		g_width = PosX;
 		g_height = PosY;
 		abs_mouse(MouseMoveEvent, PosX, PosY);
-		/*
-		PosX = g_width;
-		PosY = g_height;*/
-		
 		 
-		//ProcessEvent(MouseMoveEvent);
 		return true;
 	}
 	bool cinput_device::OnRtcMouseMove(const nlohmann::json & data)
