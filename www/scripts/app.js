@@ -517,6 +517,9 @@ function HttpRequestPost(offerSdp)
     // ?app=live&streamName=test01
 
 
+    const rtc_ip = getUrlParam('RtcIp');
+    const rtc_port = getUrlParam('RtcPort');
+
 
     const app_name = getUrlParam('app'); // 'John'
     const stream_name = getUrlParam('StreamName'); // 'John'
@@ -527,7 +530,7 @@ function HttpRequestPost(offerSdp)
     
 
 
-    var rtc_api_server = 'https://192.168.9.174:2443';
+    var rtc_api_server = 'https://' + rtc_ip + ':' + rtc_port;
     // 创建一个新的XMLHttpRequest对象
 	var xhr = new XMLHttpRequest();
 	// 打开一个新的请求
@@ -539,7 +542,7 @@ function HttpRequestPost(offerSdp)
 	var data = {
 		type: 'offer',
 		sdp: offerSdp.sdp,
-		streamurl: 'webrtc://127.0.0.1/' + app_name + '/' + stream_name,
+		streamurl: 'webrtc://'+rtc_ip +':'+rtc_port+'/' + app_name + '/' + stream_name,
 		caputretype: 1
 	};
 	console.log('JSON.stringify(data) :' + JSON.stringify(data));

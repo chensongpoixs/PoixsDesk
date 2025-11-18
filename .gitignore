@@ -7,3 +7,9 @@
 /Tools/build/
 /Tools/build/.vs/poixs_desk_tools/v17/.suo
 /--.gitignore
+/nginx.exe
+/temp
+/logs
+/docs
+/conf
+/contrib
