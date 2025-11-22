@@ -95,6 +95,9 @@ namespace chen {
 	virtual	void OnIceConnectionReceivingChange(bool receiving) override {}
 
 
+	 
+	virtual void OnCapture(bool enable) override;
+
 	protected:
 
 		// This callback transfers the ownership of the |desc|.

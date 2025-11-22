@@ -302,6 +302,11 @@ namespace chen {
 	void crtc_publisher::OnIceCandidate(const webrtc::IceCandidateInterface * candidate)
 	{
 	}
+	
+	void crtc_publisher::OnCapture(bool enable)
+	{
+		NORMAL_EX_LOG("==================enable=%u====>>>>", enable);
+	}
 	void crtc_publisher::OnSuccess(webrtc::SessionDescriptionInterface * desc)
 	{
 		// 得到本地视频基本信息 先设置本地 SDP 鸭
