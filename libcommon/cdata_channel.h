@@ -34,23 +34,274 @@ purpose:		assertion macros
 #include "cnet_types.h"
 #include <api/data_channel_interface.h>
 namespace chen {
-
-
+	/**
+	*  @author chensong
+	*  @date 2022-01-20
+	*  @brief 数据通道类（Data Channel Class）
+	*  
+	*  cdata_channel类用于管理WebRTC数据通道。数据通道提供双向数据传输功能，
+	*  可以用于发送控制消息、文件传输等非媒体数据。
+	*  
+	*  数据通道架构（Data Channel Architecture）：
+	*  
+	*    0                   1                   2                   3
+	*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |                      cdata_channel                             |
+	*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+	*   |  | DataChannelInterface: WebRTC数据通道接口                     | |
+	*   |  |   - 状态管理 (kConnecting/kOpen/kClosing/kClosed)          | |
+	*   |  |   - 消息发送和接收                                          | |
+	*   |  |   - 缓冲区管理                                              | |
+	*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+	*   |  | DataChannelObserver: 事件回调接口                            | |
+	*   |  |   - OnStateChange(): 状态变更回调                            | |
+	*   |  |   - OnMessage(): 消息接收回调                                | |
+	*   |  |   - OnBufferedAmountChange(): 缓冲区变更回调                | |
+	*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*  
+	*  数据通道消息格式（Data Channel Message Format）：
+	*  
+	*    0                   1                   2                   3
+	*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  DataBuffer:                                                   |
+	*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+	*   |  | binary: bool (是否为二进制数据)                             | |
+	*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+	*   |  | data: ArrayBuffer/string (数据内容)                         | |
+	*   |  |   - 文本数据: UTF-8编码字符串                               | |
+	*   |  |   - 二进制数据: 字节数组                                     | |
+	*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+	*   |  | size: uint32 (数据大小)                                     | |
+	*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*  
+	*  数据通道状态转换（Data Channel State Transition）：
+	*  
+	*    0                   1                   2                   3
+	*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  kConnecting (连接中)                                          |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |        |                                                       |
+	*   |        v                                                       |
+	*   |  kOpen (已打开，可以发送/接收数据)                             |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |        |                                                       |
+	*   |        v                                                       |
+	*   |  kClosing (正在关闭)                                           |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |        |                                                       |
+	*   |        v                                                       |
+	*   |  kClosed (已关闭)                                              |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*  
+	*  @note cdata_channel实现DataChannelObserver接口，接收数据通道事件
+	*  @note 数据通道使用SCTP协议在DTLS之上传输数据
+	*  @note 支持可靠和不可靠两种传输模式
+	*  
+	*  使用示例：
+	*  @code
+	*  auto data_channel = webrtc::scoped_refptr<cdata_channel>(
+	*      new rtc::RefCountedObject<cdata_channel>(channel_interface));
+	*  // 数据通道事件会自动通过OnMessage等回调处理
+	*  @endcode
+	*/
 	class cdata_channel : public  webrtc::DataChannelObserver , public webrtc::RefCountInterface
 	{
 	public:
+		/**
+		*  @author chensong
+		*  @date 2022-01-20
+		*  @brief 构造函数（Constructor）
+		*  
+		*  该构造函数用于创建数据通道实例。存储DataChannelInterface引用并注册为观察者。
+		*  
+		*  @param data DataChannelInterface智能指针，WebRTC数据通道接口，不能为空
+		*  @note 构造函数会将当前对象注册为数据通道的观察者
+		*  @note 数据通道状态变更和消息接收会触发相应的回调
+		*/
 		cdata_channel(webrtc::scoped_refptr<webrtc::DataChannelInterface> data);
 		
-		//~cdata_channel();
 	public:
-		// The data channel state have changed.
+		/**
+		*  @author chensong
+		*  @date 2022-01-20
+		*  @brief 数据通道状态变更回调（Data Channel State Change Callback）
+		*  
+		*  该方法是DataChannelObserver接口的实现。当数据通道状态改变时，
+		*  WebRTC会自动调用此方法。
+		*  
+		*  状态变更处理流程（State Change Handling Flow）：
+		*  
+		*    0                   1                   2                   3
+		*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  1. 数据通道状态改变                                          |
+		*   |     - kConnecting: 正在建立连接                               |
+		*   |     - kOpen: 连接已建立，可以传输数据                         |
+	*   |     - kClosing: 正在关闭连接                                      |
+	*   |     - kClosed: 连接已关闭                                         |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  2. WebRTC调用OnStateChange()                                 |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  3. 可以检查dataChannel->state()获取当前状态                 |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  4. 根据状态执行相应操作（如状态变为kOpen后开始发送数据）     |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*  
+		*  @note 该方法由WebRTC自动调用，无需手动调用
+		*  @note 通常需要在kOpen状态后才能发送数据
+		*  
+		*  使用示例：
+		*  @code
+		*  // 由WebRTC自动调用
+		*  void cdata_channel::OnStateChange() {
+		*      if (dataChannel->state() == webrtc::DataChannelInterface::kOpen) {
+		*          // 数据通道已打开，可以发送数据
+		*      }
+		*  }
+		*  @endcode
+		*/
 		virtual void OnStateChange() override;
-		//  A data buffer was successfully received.
+		
+		/**
+		*  @author chensong
+		*  @date 2022-01-20
+		*  @brief 数据通道消息接收回调（Data Channel Message Receive Callback）
+		*  
+		*  该方法是DataChannelObserver接口的实现。当数据通道接收到消息时，
+		*  WebRTC会自动调用此方法。
+		*  
+		*  消息接收处理流程（Message Receive Handling Flow）：
+		*  
+		*    0                   1                   2                   3
+		*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  1. 对端通过数据通道发送消息                                  |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  2. WebRTC接收消息并触发OnMessage()回调                       |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  3. buffer.binary: 判断是否为二进制数据                       |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  4. buffer.data: 获取消息数据内容                             |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  5. buffer.size: 获取消息数据大小                             |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  6. 处理消息（解析JSON、执行命令等）                          |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*  
+		*  消息数据格式（Message Data Format）：
+		*  
+		*    0                   1                   2                   3
+		*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  DataBuffer:                                                   |
+		*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+		*   |  | binary: false (文本消息)                                    | |
+		*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+		*   |  | data: "{...}" (JSON字符串)                                  | |
+		*   |  |   {"type": "keydown", "key": "A", ...}                     | |
+		*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+		*   |  | size: message_length                                       | |
+		*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*  
+		*  @param buffer 接收到的数据缓冲区，包含消息数据和元信息
+		*  @note 该方法由WebRTC自动调用，无需手动调用
+		*  @note buffer.binary为false表示文本数据，true表示二进制数据
+		*  @note 文本数据通常是UTF-8编码的JSON字符串
+		*  
+		*  使用示例：
+		*  @code
+		*  // 由WebRTC自动调用
+		*  void cdata_channel::OnMessage(const webrtc::DataBuffer& buffer) {
+		*      if (!buffer.binary) {
+		*          std::string msg((const char*)buffer.data.data(), buffer.data.size());
+		*          // 处理文本消息
+		*      }
+		*  }
+		*  @endcode
+		*/
 		virtual void OnMessage(const webrtc::DataBuffer& buffer) override;
-		// The data channel's buffered_amount has changed.
+		
+		/**
+		*  @author chensong
+		*  @date 2022-01-20
+		*  @brief 数据通道缓冲区变更回调（Data Channel Buffered Amount Change Callback）
+		*  
+		*  该方法是DataChannelObserver接口的实现。当数据通道的发送缓冲区大小
+		*  改变时，WebRTC会自动调用此方法。
+		*  
+		*  缓冲区管理流程（Buffer Management Flow）：
+		*  
+		*    0                   1                   2                   3
+		*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  1. 发送数据到数据通道                                         |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  2. 数据进入发送缓冲区                                         |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  3. buffered_amount增加                                       |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  4. 数据被发送到对端，buffered_amount减少                     |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  5. OnBufferedAmountChange()回调被触发                        |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  6. 可以根据buffered_amount控制发送速率                       |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*  
+		*  缓冲区大小监控（Buffer Size Monitoring）：
+		*  
+		*    0                   1                   2                   3
+		*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  buffered_amount: 当前缓冲区中的字节数                        |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  max_buffered_amount: 最大缓冲区大小（通常较大）              |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  当buffered_amount接近max_buffered_amount时，发送可能阻塞     |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*  
+		*  @param sent_data_size 当前缓冲区中的数据大小（字节数）
+		*  @note 该方法由WebRTC自动调用，无需手动调用
+		*  @note 可以用于流控，当缓冲区过大时暂停发送
+		*  @note sent_data_size为0表示缓冲区已清空
+		*  
+		*  使用示例：
+		*  @code
+		*  // 由WebRTC自动调用
+		*  void cdata_channel::OnBufferedAmountChange(uint64_t sent_data_size) {
+		*      if (sent_data_size > 1024 * 1024) {
+		*          // 缓冲区超过1MB，暂停发送
+		*      }
+		*  }
+		*  @endcode
+		*/
 		virtual void OnBufferedAmountChange(uint64_t sent_data_size) override;
+		
 	protected:
 	private:
+		/**
+		*  @author chensong
+		*  @date 2022-01-20
+		*  @brief 数据通道接口（Data Channel Interface）
+		*  
+		*  该成员变量用于存储WebRTC数据通道接口的智能指针。通过此接口可以
+		*  发送数据、查询状态、管理缓冲区等。
+		*  
+		*  数据通道接口功能（Data Channel Interface Functions）：
+		*  - Send(): 发送消息（文本或二进制）
+		*  - state(): 查询当前状态
+		*  - buffered_amount(): 查询缓冲区大小
+		*  - RegisterObserver(): 注册观察者（已在构造函数中注册）
+		*  
+		*  @note 使用webrtc::scoped_refptr管理引用计数
+		*  @note 在构造函数中初始化
+		*  @note 通过此接口可以发送数据到对端
+		*/
 		webrtc::scoped_refptr<webrtc::DataChannelInterface> dataChannel;
 	};
 }
