@@ -6,7 +6,6 @@ PoixsDesk 是一个基于 WebRTC 技术的远程桌面/云电脑系统，支持�
 
 ![云电脑架构图](img/CloudComputerArchitecture.png)
 
-![云电脑](img/CloudComputer.png)
 
 ## ✨ 核心功能
 

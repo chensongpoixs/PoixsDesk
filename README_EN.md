@@ -5,8 +5,7 @@
 PoixsDesk is a remote desktop/cloud computer system based on WebRTC technology, supporting remote access and control of Windows desktops through web browsers. The system implements low-latency screen sharing, audio/video transmission, and bidirectional input control functionality.
 
 ![Cloud Computer Architecture](img/CloudComputerArchitecture.png)
-
-![Cloud Computer](img/CloudComputer.png)
+ 
 
 ## ✨ Core Features
 
