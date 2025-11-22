@@ -909,7 +909,7 @@ VOID WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv) {
   *  @note 会话变更事件（如锁屏/解锁）会触发PoixsDesk.exe重启
   *  @note 锁屏问题的最终解决需要在PoixsDesk.exe内部实现
   */
-  
+
   // Loop every 3 seconds until the stop event is set or PoixsDesk.exe is running
   while (WaitForSingleObject(stop_event, 3000) != WAIT_OBJECT_0) {
     /**
