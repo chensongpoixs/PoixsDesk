@@ -1829,6 +1829,7 @@ namespace chen {
 		// 创建鼠标移动事件
 		FEvent MouseMoveEvent(EventType::MOUSE_MOVE);
 		 
+		MouseMoveEvent.SetMouseDelta(m_int_point.X, m_int_point.Y, m_int_point.X, m_int_point.Y);
 		// 更新全局屏幕坐标
 		g_width = PosX;
 		g_height = PosY;
