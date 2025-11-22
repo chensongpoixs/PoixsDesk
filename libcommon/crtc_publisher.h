@@ -405,70 +405,479 @@ namespace chen {
 		void Destory();
 		 
 	protected:
-
 		//
-	  // PeerConnectionObserver implementation.
-	  //
+		// PeerConnectionObserver implementation.
+		//
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 信令状态变更回调（Signaling State Change Callback）
+		*  
+		*  该方法是PeerConnectionObserver接口的实现。当PeerConnection的信令状态
+		*  改变时，WebRTC会自动调用此方法。
+		*  
+		*  信令状态说明（Signaling State Description）：
+		*  
+		*    0                   1                   2                   3
+		*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  kStable: 信令状态稳定，没有正在进行的SDP交换                  |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  kHaveLocalOffer: 已创建并设置本地Offer                        |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  kHaveLocalPrAnswer: 已创建并设置本地临时Answer                |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  kHaveRemoteOffer: 已接收并设置远程Offer                       |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  kHaveRemotePrAnswer: 已接收并设置远程临时Answer               |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  kClosed: PeerConnection已关闭                                 |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*  
+		*  @param new_state 新的信令状态，来自SignalingState枚举
+		*  @note 该方法由WebRTC自动调用，无需手动调用
+		*  @note 信令状态反映SDP交换的当前阶段
+		*/
+		virtual	void OnSignalingChange(
+			webrtc::PeerConnectionInterface::SignalingState new_state) override;
 
-	virtual	void OnSignalingChange(
-		webrtc::PeerConnectionInterface::SignalingState new_state) override;
-
-
-		// 好家伙  webrtc封装太好 ^_^  接口定义 PeerConnectionObserver
-	virtual	void OnAddTrack(
-		webrtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver,
-			const std::vector<webrtc::scoped_refptr<webrtc::MediaStreamInterface>>&
-			streams) override;
-	virtual	void OnRemoveTrack(
-		webrtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override;
-	virtual	void OnDataChannel(
-		webrtc::scoped_refptr<webrtc::DataChannelInterface> channel) override {}
-	virtual	void OnRenegotiationNeeded() override {}
-	virtual	void OnIceConnectionChange(
-			webrtc::PeerConnectionInterface::IceConnectionState new_state) override;
-	virtual	void OnIceGatheringChange(
-			webrtc::PeerConnectionInterface::IceGatheringState new_state) override {}
-	virtual	void OnIceCandidate(const webrtc::IceCandidateInterface* candidate) override;
-	virtual	void OnIceConnectionReceivingChange(bool receiving) override {}
-
-
-	 
-	virtual void OnCapture(bool enable) override;
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 添加轨道回调（Add Track Callback）
+		*  
+		*  该方法是PeerConnectionObserver接口的实现。当远程端添加新的媒体轨道时，
+		*  WebRTC会自动调用此方法。
+		*  
+		*  轨道添加处理流程（Track Addition Handling Flow）：
+		*  
+		*    0                   1                   2                   3
+		*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  1. 远程端添加媒体轨道（视频或音频）                           |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  2. WebRTC创建RtpReceiver接收轨道数据                          |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  3. OnAddTrack()回调被触发                                    |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  4. receiver->track(): 获取MediaStreamTrack                   |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  5. streams: 获取轨道所属的MediaStream列表                    |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  6. 处理轨道（显示视频、播放音频等）                          |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*  
+		*  @param receiver RTP接收器接口，用于接收媒体数据
+		*  @param streams 媒体流列表，包含此轨道的MediaStream对象
+		*  @note 该方法由WebRTC自动调用，无需手动调用
+		*  @note 通常用于接收远程端的音视频轨道
+		*/
+		virtual	void OnAddTrack(
+			webrtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver,
+				const std::vector<webrtc::scoped_refptr<webrtc::MediaStreamInterface>>&
+				streams) override;
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 移除轨道回调（Remove Track Callback）
+		*  
+		*  该方法是PeerConnectionObserver接口的实现。当远程端移除媒体轨道时，
+		*  WebRTC会自动调用此方法。
+		*  
+		*  @param receiver RTP接收器接口，被移除的接收器
+		*  @note 该方法由WebRTC自动调用，无需手动调用
+		*  @note 需要清理与此轨道相关的资源
+		*/
+		virtual	void OnRemoveTrack(
+			webrtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override;
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 数据通道创建回调（Data Channel Creation Callback）
+		*  
+		*  该方法是PeerConnectionObserver接口的实现。当远程端创建数据通道时，
+		*  WebRTC会自动调用此方法。
+		*  
+		*  @param channel 数据通道接口，用于双向数据传输
+		*  @note 当前实现为空，可以根据需要添加数据通道处理逻辑
+		*  @note 该方法由WebRTC自动调用，无需手动调用
+		*/
+		virtual	void OnDataChannel(
+			webrtc::scoped_refptr<webrtc::DataChannelInterface> channel) override {}
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 需要重新协商回调（Renegotiation Needed Callback）
+		*  
+		*  该方法是PeerConnectionObserver接口的实现。当需要重新进行SDP协商时，
+		*  WebRTC会自动调用此方法（例如添加或移除轨道后）。
+		*  
+		*  @note 当前实现为空，可以根据需要触发重新协商
+		*  @note 该方法由WebRTC自动调用，无需手动调用
+		*/
+		virtual	void OnRenegotiationNeeded() override {}
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief ICE连接状态变更回调（ICE Connection State Change Callback）
+		*  
+		*  该方法是PeerConnectionObserver接口的实现。当ICE连接状态改变时，
+		*  WebRTC会自动调用此方法。
+		*  
+		*  ICE连接状态说明（ICE Connection State Description）：
+		*  
+		*    0                   1                   2                   3
+		*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  kIceConnectionNew: ICE连接刚创建                              |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  kIceConnectionChecking: 正在检查ICE候选                       |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  kIceConnectionConnected: ICE连接已建立                        |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  kIceConnectionCompleted: ICE连接完成                          |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  kIceConnectionFailed: ICE连接失败                             |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  kIceConnectionDisconnected: ICE连接断开                       |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  kIceConnectionClosed: ICE连接已关闭                           |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*  
+		*  @param new_state 新的ICE连接状态，来自IceConnectionState枚举
+		*  @note 该方法由WebRTC自动调用，无需手动调用
+		*  @note 连接失败时应该通知listener->connect_rtc_failed()
+		*/
+		virtual	void OnIceConnectionChange(
+				webrtc::PeerConnectionInterface::IceConnectionState new_state) override;
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief ICE候选收集状态变更回调（ICE Gathering State Change Callback）
+		*  
+		*  该方法是PeerConnectionObserver接口的实现。当ICE候选收集状态改变时，
+		*  WebRTC会自动调用此方法。
+		*  
+		*  @param new_state 新的ICE收集状态（kIceGatheringNew/kIceGatheringGathering/kIceGatheringComplete）
+		*  @note 当前实现为空，可以根据需要添加处理逻辑
+		*  @note 该方法由WebRTC自动调用，无需手动调用
+		*/
+		virtual	void OnIceGatheringChange(
+				webrtc::PeerConnectionInterface::IceGatheringState new_state) override {}
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief ICE候选收集回调（ICE Candidate Callback）
+		*  
+		*  该方法是PeerConnectionObserver接口的实现。当收集到新的ICE候选时，
+		*  WebRTC会自动调用此方法。ICE候选用于建立媒体传输路径。
+		*  
+		*  ICE候选收集流程（ICE Candidate Gathering Flow）：
+		*  
+		*    0                   1                   2                   3
+		*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  1. WebRTC开始ICE候选收集                                     |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  2. 发现新的网络候选（主机、服务器反射、中继）                 |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  3. OnIceCandidate()回调被触发，包含候选信息                   |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  4. 将候选信息编码为SDP格式                                   |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  5. 通过信令服务器发送候选到对端                              |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  6. 对端接收并添加候选                                        |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*  
+		*  ICE候选格式（ICE Candidate Format）：
+		*  
+		*    0                   1                   2                   3
+		*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  candidate: <foundation> <component> <protocol> <priority>     |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |         <candidate-ip> <candidate-port> <typ> <related-ip>     |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |         <related-port> generation <generation>                  |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  sdp_mid: 媒体描述标识符                                       |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  sdp_mline_index: 媒体行索引                                   |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*  
+		*  @param candidate ICE候选接口指针，包含候选信息，不能为空
+		*  @note 该方法由WebRTC自动调用，无需手动调用
+		*  @note 需要将候选信息发送到对端才能建立连接
+		*  @note candidate为nullptr表示候选收集完成
+		*/
+		virtual	void OnIceCandidate(const webrtc::IceCandidateInterface* candidate) override;
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief ICE连接接收状态变更回调（ICE Connection Receiving Change Callback）
+		*  
+		*  该方法是PeerConnectionObserver接口的实现。当ICE连接开始或停止接收数据时，
+		*  WebRTC会自动调用此方法。
+		*  
+		*  @param receiving 是否正在接收数据，true表示正在接收，false表示未接收
+		*  @note 当前实现为空，可以根据需要添加处理逻辑
+		*  @note 该方法由WebRTC自动调用，无需手动调用
+		*/
+		virtual	void OnIceConnectionReceivingChange(bool receiving) override {}
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 捕获控制回调（Capture Control Callback）
+		*  
+		*  该方法是自定义的回调接口。用于控制音视频捕获的开始和停止。
+		*  
+		*  @param enable 是否启用捕获，true表示启用，false表示禁用
+		*  @note 用于外部控制音视频捕获
+		*/
+		virtual void OnCapture(bool enable) override;
 
 	protected:
-
-		// This callback transfers the ownership of the |desc|.
-		  // TODO(deadbeef): Make this take an std::unique_ptr<> to avoid confusion
-		  // around ownership.
+		//
+		// CreateSessionDescriptionObserver implementation.
+		//
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief SDP创建成功回调（SDP Creation Success Callback）
+		*  
+		*  该方法是CreateSessionDescriptionObserver接口的实现。当SDP创建成功时，
+		*  WebRTC会自动调用此方法。
+		*  
+		*  SDP创建成功处理流程（SDP Creation Success Handling Flow）：
+		*  
+		*    0                   1                   2                   3
+		*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  1. create_offer()创建Offer SDP请求                            |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  2. WebRTC异步创建SDP                                          |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  3. SDP创建成功，OnSuccess()回调被触发                         |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  4. desc->ToString(): 将SDP转换为字符串                        |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  5. 设置本地描述: peer_connection_->SetLocalDescription()      |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  6. 通过listener->send_create_offer_sdp()发送SDP到信令服务器  |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*  
+		*  @param desc SessionDescriptionInterface指针，包含创建的SDP描述，不能为空
+		*  @note 该方法由WebRTC自动调用，无需手动调用
+		*  @note 此回调转移desc的所有权，需要负责释放desc
+		*  @note SDP创建成功后需要设置本地描述并发送到对端
+		*/
 		virtual void OnSuccess(webrtc::SessionDescriptionInterface* desc)  ;
-		// The OnFailure callback takes an RTCError, which consists of an
-		// error code and a string.
-		// RTCError is non-copyable, so it must be passed using std::move.
-		// Earlier versions of the API used a string argument. This version
-		// is deprecated; in order to let clients remove the old version, it has a
-		// default implementation. If both versions are unimplemented, the
-		// result will be a runtime error (stack overflow). This is intentional.
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief SDP创建失败回调 - RTCError版本（SDP Creation Failure Callback - RTCError Version）
+		*  
+		*  该方法是CreateSessionDescriptionObserver接口的实现。当SDP创建失败时，
+		*  WebRTC会自动调用此方法。
+		*  
+		*  @param error RTCError对象，包含错误代码和错误信息
+		*  @note 该方法由WebRTC自动调用，无需手动调用
+		*  @note RTCError是非拷贝的，需要使用std::move传递
+		*  @note 需要处理错误并通知listener->connect_rtc_failed()
+		*/
 		virtual void OnFailure(webrtc::RTCError error);
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief SDP创建失败回调 - 字符串版本（SDP Creation Failure Callback - String Version）
+		*  
+		*  该方法是CreateSessionDescriptionObserver接口的旧版本实现。
+		*  当SDP创建失败时，WebRTC会调用此方法（如果新版本未实现）。
+		*  
+		*  @param error 错误信息字符串，描述失败原因
+		*  @note 该方法已废弃，建议使用RTCError版本
+		*  @note 该方法由WebRTC自动调用，无需手动调用
+		*  @note 如果两个版本都未实现，会导致运行时错误（栈溢出）
+		*/
 		virtual void OnFailure(const std::string& error);
 
 
 
 	private:
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 添加音视频轨道（Add Tracks）
+		*  
+		*  该私有方法用于向PeerConnection添加音视频轨道。创建VideoTrackSource和
+		*  AudioTrackSource，并将它们添加到PeerConnection中。
+		*  
+		*  添加轨道流程（Add Tracks Flow）：
+		*  
+		*    0                   1                   2                   3
+		*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  1. 创建VideoTrackSource（视频源）                              |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  2. 创建VideoTrack并添加到PeerConnection                        |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  3. 创建AudioTrackSource（音频源，如果需要）                    |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  4. 创建AudioTrack并添加到PeerConnection                        |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |  5. 轨道添加完成，可以开始捕获和发送                            |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*  
+		*  @note 该方法在CreatePeerConnection()后调用
+		*  @note 需要先创建轨道才能创建Offer SDP
+		*/
 		void  _add_tracks();
+		
 	protected:
-		//~crtc_publisher() {}
 	private:
-		// Signaling and worker threads.
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 监听器回调指针（Listener Callback Pointer）
+		*  
+		*  该成员变量用于存储监听器回调指针。通过此指针可以通知外部事件，
+		*  如SDP创建完成、连接失败等。
+		*  
+		*  @note 在构造函数中初始化，不能为空
+		*  @note 用于回调SDP创建和连接失败事件
+		*/
 		crtc_publisher::clistener *			m_callback_ptr;
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 网络线程（Network Thread）
+		*  
+		*  该成员变量用于存储WebRTC网络线程。网络线程负责处理网络I/O操作，
+		*  包括RTP/RTCP数据包的发送和接收。
+		*  
+		*  线程职责（Thread Responsibilities）：
+		*  - 处理UDP/TCP网络I/O
+		*  - 发送和接收RTP/RTCP包
+		*  - 管理网络连接
+		*  
+		*  @note 在InitializePeerConnection()中创建
+		*  @note 使用std::unique_ptr管理生命周期
+		*  @note 网络线程用于所有网络相关操作
+		*/
 		std::unique_ptr<webrtc::Thread> networkThread;
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 信令线程（Signaling Thread）
+		*  
+		*  该成员变量用于存储WebRTC信令线程。信令线程负责处理PeerConnection的
+		*  信令操作，如SDP创建、设置描述等。
+		*  
+		*  线程职责（Thread Responsibilities）：
+		*  - 处理PeerConnection信令操作
+		*  - 创建和设置SDP
+		*  - 管理轨道添加/移除
+		*  
+		*  @note 在InitializePeerConnection()中创建
+		*  @note 使用std::unique_ptr管理生命周期
+		*  @note 信令线程用于所有PeerConnection操作
+		*/
 		std::unique_ptr<webrtc::Thread> signalingThread;
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 工作线程（Worker Thread）
+		*  
+		*  该成员变量用于存储WebRTC工作线程。工作线程负责处理媒体编解码、
+		*  数据处理等计算密集型任务。
+		*  
+		*  线程职责（Thread Responsibilities）：
+		*  - 处理音视频编解码
+		*  - 处理媒体数据处理
+		*  - 执行计算密集型任务
+		*  
+		*  @note 在InitializePeerConnection()中创建
+		*  @note 使用std::unique_ptr管理生命周期
+		*  @note 工作线程用于所有媒体处理操作
+		*/
 		std::unique_ptr<webrtc::Thread> workerThread;
 
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief PeerConnection接口（PeerConnection Interface）
+		*  
+		*  该成员变量用于存储WebRTC PeerConnection接口的智能指针。
+		*  PeerConnection是WebRTC的核心，负责管理连接、媒体轨道和数据通道。
+		*  
+		*  PeerConnection功能（PeerConnection Functions）：
+		*  - CreateOffer(): 创建Offer SDP
+		*  - SetLocalDescription(): 设置本地SDP描述
+		*  - SetRemoteDescription(): 设置远程SDP描述
+		*  - AddTrack(): 添加媒体轨道
+		*  - CreateDataChannel(): 创建数据通道
+		*  - Close(): 关闭连接
+		*  
+		*  @note 使用webrtc::scoped_refptr管理引用计数
+		*  @note 在CreatePeerConnection()中创建
+		*  @note PeerConnection是所有WebRTC操作的核心接口
+		*/
 		webrtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief PeerConnection工厂接口（PeerConnection Factory Interface）
+		*  
+		*  该成员变量用于存储WebRTC PeerConnectionFactory接口的智能指针。
+		*  PeerConnectionFactory用于创建PeerConnection、媒体轨道和编码器等。
+		*  
+		*  Factory功能（Factory Functions）：
+		*  - CreatePeerConnection(): 创建PeerConnection
+		*  - CreateVideoTrack(): 创建视频轨道
+		*  - CreateAudioTrack(): 创建音频轨道
+		*  - CreateVideoEncoderFactory(): 创建视频编码器工厂
+		*  - CreateVideoDecoderFactory(): 创建视频解码器工厂
+		*  
+		*  @note 使用webrtc::scoped_refptr管理引用计数
+		*  @note 在InitializePeerConnection()中创建
+		*  @note Factory是创建所有WebRTC对象的工厂
+		*/
 		webrtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
-		 
-
-	 
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 数据通道指针（Data Channel Pointer）
+		*  
+		*  该成员变量用于存储数据通道的智能指针。数据通道提供双向数据传输功能，
+		*  用于发送控制消息等非媒体数据。
+		*  
+		*  数据通道功能（Data Channel Functions）：
+		*  - Send(): 发送消息（文本或二进制）
+		*  - state(): 查询当前状态
+		*  - buffered_amount(): 查询缓冲区大小
+		*  
+		*  @note 使用webrtc::scoped_refptr管理引用计数
+		*  @note 数据通道在PeerConnection创建后创建
+		*  @note 用于发送控制消息和文件传输等
+		*/
 		webrtc::scoped_refptr < cdata_channel>			m_data_channel_ptr;
 	};
 }
