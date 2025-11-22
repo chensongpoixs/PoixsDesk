@@ -6,8 +6,6 @@ PoixsDesk 是一个基于 WebRTC 技术的远程桌面/云电脑系统，支持�
 
 ![云电脑架构图](img/CloudComputerArchitecture.png)
 
-![云电脑](img/CloudComputer.png)
-
 ## ✨ 核心功能
 
 ### 1. 实时屏幕共享
@@ -89,8 +87,6 @@ PoixsDesk/
 ```
 
 详细的架构说明请参考 [ARCHITECTURE.md](ARCHITECTURE.md)
-
-英文文档请参考 [README_EN.md](README_EN.md)
 
 ## 🚀 快速开始
 
@@ -349,9 +345,7 @@ chen::keyboard_update(event, vk_code, release, flags);
 
 ## 📚 相关文档
 
-- [架构文档](ARCHITECTURE.md) - 详细的系统架构说明（中文）
-- [架构文档（英文）](ARCHITECTURE_EN.md) - 详细的系统架构说明（英文）
-- [README（英文）](README_EN.md) - 英文项目说明文档
+- [架构文档](ARCHITECTURE.md) - 详细的系统架构说明
 - [API 文档](docs/API.md) - API 参考文档
 - [开发指南](docs/DEVELOPMENT.md) - 开发指南
 
@@ -385,3 +379,4 @@ chen::keyboard_update(event, vk_code, release, flags);
 
 **最后更新**：2025-01-XX  
 **版本**：1.0
+

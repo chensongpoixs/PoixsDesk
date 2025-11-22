@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright CRTC. All Rights Reserved.
 
 // Window events for a gamepad connecting
 let haveEvents = 'GamepadEvent' in window;

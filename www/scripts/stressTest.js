@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright CRTC. All Rights Reserved.
 
 // This is the entrypoint to the stress test, all setup happens here
 function stressTest() {
