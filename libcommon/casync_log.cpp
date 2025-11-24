@@ -39,6 +39,7 @@
 #elif defined(__linux__) ||defined(__APPLE__)
 #include <unistd.h>
 #include <dirent.h>
+#include <arpa/inet.h>
 #else
 // 其他不支持的编译器需要自己实现这个方法
 #error unexpected c complier (msc/gcc), Need to implement this method for demangle
