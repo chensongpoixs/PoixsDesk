@@ -228,10 +228,10 @@ namespace chen {
 					 if (stats.type() == webrtc::RTCOutboundRtpStreamStats::kType)
 					{
 						const auto& outbound = stats.cast_to<webrtc::RTCOutboundRtpStreamStats>();
-						if (outbound.content_type && *outbound.content_type != "video")
-						{
-							continue;
-						}
+						//if (outbound.content_type && *outbound.content_type != "video")
+						//{
+						//	continue;
+						//}
 						log_lines.emplace_back(FormatVideo(outbound));
 
 						if (outbound.frame_width)
