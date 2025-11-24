@@ -27,9 +27,14 @@ purpose:		api_rtc_publish
 #include "api/media_stream_interface.h"
 #include "api/peer_connection_interface.h"
 #include <string>
+#include <atomic>
+#include <thread>
+#include <functional>
+#include <cstdint>
 #include "cnet_types.h"
 #include "cdata_channel.h"
 #include "ccapturer_tracksource.h"
+#include "json.hpp"
 namespace chen {
 	
 	/**
@@ -745,7 +750,20 @@ namespace chen {
 		*  @note 需要先创建轨道才能创建Offer SDP
 		*/
 		void  _add_tracks();
-		
+
+		/**
+		* @brief 启动RTC统计日志线程，周期性打印视频与网络参数
+		*/
+		void StartStatsLogger();
+
+		/**
+		* @brief 停止统计日志线程，确保在释放PeerConnection前退出
+		*/
+		void StopStatsLogger();
+
+		/**
+		* @brief 将统计数据发送到 PushStatisServer
+		*/
 	protected:
 	private:
 		/**
@@ -879,6 +897,25 @@ namespace chen {
 		*  @note 用于发送控制消息和文件传输等
 		*/
 		webrtc::scoped_refptr < cdata_channel>			m_data_channel_ptr;
+
+		/**
+		* @brief 统计信息打印线程与标志位
+		*/
+		std::unique_ptr<std::thread> stats_thread_;
+		std::atomic_bool stats_running_{ false };
+		std::string stats_stream_id_;
+		std::string stats_endpoint_url_;
+	
+	public:
+
+		struct StatsEndpoint {
+			bool secure = false;
+			uint16_t port = 0;
+			std::string host;
+			std::string path;
+		};
+		StatsEndpoint stats_endpoint_;
+		bool stats_endpoint_ready_ = false;
 	};
 }
 

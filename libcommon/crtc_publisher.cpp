@@ -49,6 +49,8 @@ purpose:		api_rtc_publish
 #include "rtc_base/logging.h"
 #include "rtc_base/ref_counted_object.h"
 #include "rtc_base/rtc_certificate_generator.h"
+#include <windows.h>
+#include <cstdlib>
 //#include "cclient.h"
 //#include "ccapturer_track_source.h"
 #include "ccapturer_tracksource.h"
@@ -59,6 +61,107 @@ purpose:		api_rtc_publish
 #include "cinput_device.h"
 #include "clog.h"
 #include "cdesktop_capture.h"
+//#include "api/stats/rtcstats_collector_callback.h"
+#include "api/stats/rtcstats_objects.h"
+#include "httplib.h"
+#include <chrono>
+#include <iomanip>
+#include <sstream>
+#include <thread>
+#include <vector>
+
+namespace {
+
+std::string GenerateStreamId()
+{
+	char computer_name[MAX_COMPUTERNAME_LENGTH + 1] = "PoixsDesk";
+	DWORD size = MAX_COMPUTERNAME_LENGTH + 1;
+	if (!GetComputerNameA(computer_name, &size))
+	{
+		strcpy_s(computer_name, "PoixsDesk");
+	}
+	std::ostringstream oss;
+	oss << computer_name << "-" << GetCurrentProcessId();
+	return oss.str();
+}
+
+bool ParseStatsEndpoint(const std::string& url, chen::crtc_publisher::StatsEndpoint& endpoint)
+{
+	if (url.empty())
+	{
+		return false;
+	}
+	auto scheme_pos = url.find("://");
+	if (scheme_pos == std::string::npos)
+	{
+		return false;
+	}
+	std::string scheme = url.substr(0, scheme_pos);
+	endpoint.secure = (scheme == "https");
+	std::string remainder = url.substr(scheme_pos + 3);
+	auto path_pos = remainder.find('/');
+	std::string host_port = path_pos == std::string::npos ? remainder : remainder.substr(0, path_pos);
+	std::string path = path_pos == std::string::npos ? "/" : remainder.substr(path_pos);
+	auto colon_pos = host_port.find(':');
+	std::string host = colon_pos == std::string::npos ? host_port : host_port.substr(0, colon_pos);
+	uint16_t port = 0;
+	if (colon_pos == std::string::npos)
+	{
+		port = endpoint.secure ? 443 : 8089;
+	}
+	else
+	{
+		port = static_cast<uint16_t>(std::stoi(host_port.substr(colon_pos + 1)));
+	}
+	endpoint.host = host;
+	endpoint.path = path.empty() ? "/" : path;
+	endpoint.port = port;
+	return !endpoint.host.empty() && endpoint.port != 0;
+}
+
+bool HttpPostJson(const chen::crtc_publisher::StatsEndpoint& endpoint, const std::string& payload)
+{
+	if (endpoint.host.empty() || endpoint.port == 0)
+	{
+		return false;
+	}
+
+	const char* content_type = "application/json";
+	try
+	{
+		if (endpoint.secure)
+		{
+#ifdef CPPHTTPLIB_OPENSSL_SUPPORT
+			httplib::SSLClient client(endpoint.host, endpoint.port);
+			client.set_connection_timeout(5);
+			if (auto res = client.Post(endpoint.path.c_str(), payload, content_type))
+			{
+				return res->status >= 200 && res->status < 300;
+			}
+#else
+			WARNING_EX_LOG("Push stats endpoint requires HTTPS but httplib SSL support is disabled");
+#endif
+		}
+		else
+		{
+			httplib::Client client(endpoint.host, endpoint.port);
+			client.set_connection_timeout(5);
+			if (auto res = client.Post(endpoint.path.c_str(), payload, content_type))
+			{
+				return res->status >= 200 && res->status < 300;
+			}
+		}
+	}
+	catch (const std::exception& ex)
+	{
+		WARNING_EX_LOG("Push stats request exception: %s", ex.what());
+	}
+
+	return false;
+}
+
+} // namespace
+
 namespace chen {
 	
 	namespace
@@ -78,7 +181,7 @@ namespace chen {
 				}
 #endif
 				std::unique_ptr<chen::DesktopCapture> capturer(
-					chen::DesktopCapture::Create(30, 0));
+					chen::DesktopCapture::Create(60, 0));
 				if (capturer) {
 					capturer->StartCapture();
 					return webrtc::make_ref_counted<DesktopTrackSource>(std::move(capturer));
@@ -103,6 +206,254 @@ namespace chen {
 			// std::unique_ptr<webrtc::test::VcmCapturer> capturer_;
 			std::unique_ptr<chen::DesktopCapture> capturer_;
 		};
+
+		class StatsLogger : public webrtc::RTCStatsCollectorCallback
+		{
+		public:
+			StatsLogger(std::string stream_id,
+				bool enable_upload,
+				crtc_publisher::StatsEndpoint endpoint)
+				: stream_id_(std::move(stream_id)),
+				upload_enabled_(enable_upload),
+				endpoint_(std::move(endpoint)) {}
+
+			void OnStatsDelivered(const webrtc::scoped_refptr<const webrtc::RTCStatsReport>& report) override
+			{
+				std::vector<std::string> log_lines;
+				nlohmann::json video_json = nlohmann::json::object();
+				nlohmann::json network_json = nlohmann::json::object();
+				nlohmann::json extra_json = nlohmann::json::object();
+				for (const auto& stats : *report)
+				{
+					 if (stats.type() == webrtc::RTCOutboundRtpStreamStats::kType)
+					{
+						const auto& outbound = stats.cast_to<webrtc::RTCOutboundRtpStreamStats>();
+						if ( outbound.content_type  &&  *outbound.content_type != "video")
+						{
+							continue;
+						}
+						log_lines.emplace_back(FormatVideo(outbound));
+
+						if (outbound.frame_width)
+						{
+							video_json["width"] = *outbound.frame_width;
+						}
+						if (outbound.frame_height)
+						{
+							video_json["height"] = *outbound.frame_height;
+						}
+						if (outbound.frames_per_second)
+						{
+							video_json["fps"] = *outbound.frames_per_second;
+						}
+						if (outbound.bytes_sent )
+						{
+							video_json["bytesSent"] = *outbound.bytes_sent;
+						}
+						if (outbound.packets_sent )
+						{
+							video_json["packetsSent"] = *outbound.packets_sent;
+						}
+						if (outbound.frames_encoded )
+						{
+							video_json["framesEncoded"] = *outbound.frames_encoded;
+						}
+						if (outbound.encoder_implementation )
+						{
+							video_json["encoder"] = *outbound.encoder_implementation;
+						}
+						if (outbound.ssrc )
+						{
+							video_json["ssrc"] = *outbound.ssrc;
+						}
+					}
+					else if (stats.type() == webrtc::RTCIceCandidatePairStats::kType)
+					{
+						const auto& pair = stats.cast_to<webrtc::RTCIceCandidatePairStats>();
+						if (pair.nominated  && !*pair.nominated)
+						{
+							continue;
+						}
+						if (pair.state  && *pair.state != "succeeded")
+						{
+							continue;
+						}
+						log_lines.emplace_back(FormatCandidate(pair));
+
+						if (pair.current_round_trip_time )
+						{
+							double rtt = *pair.current_round_trip_time;
+							network_json["currentRoundTripTime"] = rtt;
+							network_json["rttMs"] = rtt * 1000.0;
+						}
+						if (pair.available_outgoing_bitrate )
+						{
+							double bw = *pair.available_outgoing_bitrate;
+							network_json["availableOutgoingBitrateKbps"] = bw / 1000.0;
+						}
+						if (pair.available_incoming_bitrate )
+						{
+							double bw = *pair.available_incoming_bitrate;
+							network_json["availableIncomingBitrateKbps"] = bw / 1000.0;
+						}
+						if (pair.bytes_sent )
+						{
+							network_json["bytesSent"] = *pair.bytes_sent;
+						}
+						if (pair.bytes_received )
+						{
+							network_json["bytesReceived"] = *pair.bytes_received;
+						}
+						if (pair.packets_sent )
+						{
+							network_json["packetsSent"] = *pair.packets_sent;
+						}
+						if (pair.packets_received )
+						{
+							network_json["packetsReceived"] = *pair.packets_received;
+						}
+						extra_json["candidatePairId"] = pair.id();
+						if (pair.local_candidate_id )
+						{
+							extra_json["localCandidateId"] = *pair.local_candidate_id;
+						}
+						if (pair.remote_candidate_id )
+						{
+							extra_json["remoteCandidateId"] = *pair.remote_candidate_id;
+						}
+					}
+					else if (stats.type() == webrtc::RTCTransportStats::kType)
+					{
+						const auto& transport = stats.cast_to<webrtc::RTCTransportStats>();
+						log_lines.emplace_back(FormatTransport(transport));
+						if (transport.bytes_sent )
+						{
+							network_json["transportBytesSent"] = *transport.bytes_sent;
+						}
+						if (transport.bytes_received )
+						{
+							network_json["transportBytesReceived"] = *transport.bytes_received;
+						}
+						extra_json["transportId"] = transport.id();
+					}
+				}
+				for (const auto& line : log_lines)
+				{
+					NORMAL_EX_LOG("%s", line.c_str());
+				}
+
+				if (upload_enabled_)
+				{
+					nlohmann::json payload = {
+						{"streamId", stream_id_},
+						{"video", video_json},
+						{"network", network_json},
+						{"extra", extra_json}
+					};
+
+					std::string body = payload.dump();
+					std::thread([endpoint = endpoint_, data = std::move(body)]() {
+						if (!HttpPostJson(endpoint, data))
+						{
+							WARNING_EX_LOG("Failed to send stats to PushStatisServer");
+						}
+						}).detach();
+				}
+			}
+
+		private:
+			template <typename MemberT>
+			static void AppendIntegral(const char* label, const MemberT& member, std::ostringstream& oss)
+			{
+				if (member )
+				{
+					oss << label << '=' << static_cast<long long>(*member) << ' ';
+				}
+			}
+
+			template <typename MemberT>
+			static void AppendString(const char* label, const MemberT& member, std::ostringstream& oss)
+			{
+				if (member )
+				{
+					oss << label << '=' << std::quoted(*member) << ' ';
+				}
+			}
+
+			template <typename MemberT>
+			static void AppendBool(const char* label, const MemberT& member, std::ostringstream& oss)
+			{
+				if (member )
+				{
+					oss << label << '=' << (*member ? "true" : "false") << ' ';
+				}
+			}
+
+			template <typename MemberT>
+			static void AppendDouble(const char* label, const MemberT& member, double multiplier, const char* unit, std::ostringstream& oss)
+			{
+				if (!member )
+				{
+					return;
+				}
+				std::ostringstream value;
+				value << std::fixed << std::setprecision(2) << (*member * multiplier);
+				oss << label << '=' << value.str();
+				if (unit)
+				{
+					oss << unit;
+				}
+				oss << ' ';
+			}
+
+			static std::string FormatVideo(const webrtc::RTCOutboundRtpStreamStats& outbound)
+			{
+				std::ostringstream oss;
+				oss << "[RTC Video] ";
+				AppendString("track", outbound.media_source_id, oss);
+				AppendIntegral("ssrc", outbound.ssrc, oss);
+				AppendIntegral("width", outbound.frame_width, oss);
+				AppendIntegral("height", outbound.frame_height, oss);
+				AppendDouble("fps", outbound.frames_per_second, 1.0, "", oss);
+				AppendIntegral("frames_encoded", outbound.frames_encoded, oss);
+				AppendIntegral("bytes_sent", outbound.bytes_sent, oss);
+				AppendIntegral("packets_sent", outbound.packets_sent, oss);
+				AppendString("encoder", outbound.encoder_implementation, oss);
+				return oss.str();
+			}
+
+			static std::string FormatCandidate(const webrtc::RTCIceCandidatePairStats& pair)
+			{
+				std::ostringstream oss;
+				oss << "[RTC Network] pair=" << pair.id() << ' ';
+				AppendString("state", pair.state, oss);
+				AppendBool("nominated", pair.nominated, oss);
+				AppendDouble("rtt_ms", pair.current_round_trip_time, 1000.0, "ms", oss);
+				AppendDouble("available_out_kbps", pair.available_outgoing_bitrate, 0.001, "kbps", oss);
+				AppendIntegral("bytes_sent", pair.bytes_sent, oss);
+				AppendIntegral("bytes_recv", pair.bytes_received, oss);
+				AppendIntegral("packets_sent", pair.packets_sent, oss);
+				AppendIntegral("packets_recv", pair.packets_received, oss);
+				AppendString("local", pair.local_candidate_id, oss);
+				AppendString("remote", pair.remote_candidate_id, oss);
+				return oss.str();
+			}
+
+			static std::string FormatTransport(const webrtc::RTCTransportStats& transport)
+			{
+				std::ostringstream oss;
+				oss << "[RTC Transport] id=" << transport.id() << ' ';
+				AppendString("dtls_state", transport.dtls_state, oss);
+				AppendString("candidate_pair", transport.selected_candidate_pair_id, oss);
+				AppendIntegral("bytes_sent", transport.bytes_sent, oss);
+				AppendIntegral("bytes_recv", transport.bytes_received, oss);
+				return oss.str();
+			}
+
+			std::string stream_id_;
+			bool upload_enabled_;
+			crtc_publisher::StatsEndpoint endpoint_;
+		};
 	}
 	class DummySetSessionDescriptionObserver
 		: public webrtc::SetSessionDescriptionObserver {
@@ -125,6 +476,21 @@ namespace chen {
 	crtc_publisher::crtc_publisher(crtc_publisher::clistener * callback)
 		: m_callback_ptr(callback)
 	{
+		stats_stream_id_ = GenerateStreamId();
+		const char* endpoint_env = std::getenv("PUSH_STAT_ENDPOINT");
+		if (endpoint_env && endpoint_env[0])
+		{
+			stats_endpoint_url_ = endpoint_env;
+		}
+		else
+		{
+			stats_endpoint_url_ = "http://127.0.0.1:8089/api/stats";
+		}
+		stats_endpoint_ready_ = ParseStatsEndpoint(stats_endpoint_url_, stats_endpoint_);
+		if (!stats_endpoint_ready_)
+		{
+			WARNING_EX_LOG("Failed to parse stats endpoint url: %s", stats_endpoint_url_.c_str());
+		}
 	}
 
 	bool crtc_publisher::create_offer()
@@ -254,6 +620,7 @@ namespace chen {
 
 	void crtc_publisher::Destory()
 	{
+		StopStatsLogger();
 		
 		if (peer_connection_)
 		{
@@ -386,6 +753,47 @@ namespace chen {
 		else {
 			RTC_LOG(LS_ERROR) << "OpenVideoCaptureDevice failed";
 		}
+
+		StartStatsLogger();
+	}
+
+	void crtc_publisher::StartStatsLogger()
+	{
+		if (stats_running_)
+		{
+			return;
+		}
+		stats_running_ = true;
+		stats_thread_ = std::make_unique<std::thread>([this]() {
+			while (stats_running_)
+			{
+				auto pc = peer_connection_;
+				if (pc)
+				{
+					webrtc::scoped_refptr<StatsLogger> callback =
+						webrtc::make_ref_counted<StatsLogger>(
+							stats_stream_id_,
+							stats_endpoint_ready_,
+							stats_endpoint_);
+					pc->GetStats(callback.get());
+				}
+				std::this_thread::sleep_for(std::chrono::seconds(1));
+			}
+			});
+	}
+
+	void crtc_publisher::StopStatsLogger()
+	{
+		if (!stats_running_)
+		{
+			return;
+		}
+		stats_running_ = false;
+		if (stats_thread_ && stats_thread_->joinable())
+		{
+			stats_thread_->join();
+		}
+		stats_thread_.reset();
 	}
 
 }

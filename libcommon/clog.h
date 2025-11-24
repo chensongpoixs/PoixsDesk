@@ -82,24 +82,24 @@ namespace chen {
 	};
 
 
-#define LOG clog
+#define LOG chen::clog
 
 
 	//标准log 有时间前缀
-#define LOG_SYSTEM LOG(ELogLevel_System)
-#define LOG_FATAL  LOG(ELogLevel_Fatal, FUNCTION, __LINE__)
-#define LOG_ERROR  LOG(ELogLevel_Error, FUNCTION, __LINE__)
-#define LOG_WARN   LOG(ELogLevel_Warn, FUNCTION, __LINE__)
-#define LOG_INFO   LOG(ELogLevel_Info)
-#define LOG_DEBUG  LOG(ELogLevel_Debug)
+#define LOG_SYSTEM LOG(chen::ELogLevel_System)
+#define LOG_FATAL  LOG(chen::ELogLevel_Fatal, FUNCTION, __LINE__)
+#define LOG_ERROR  LOG(chen::ELogLevel_Error, FUNCTION, __LINE__)
+#define LOG_WARN   LOG(chen::ELogLevel_Warn, FUNCTION, __LINE__)
+#define LOG_INFO   LOG(chen::ELogLevel_Info)
+#define LOG_DEBUG  LOG(chen::ELogLevel_Debug)
 
 #define VAR_LOG LOG::var_log
 
-#define NORMAL_LOG(format, ...)		VAR_LOG(ELogLevel_Info, format, ##__VA_ARGS__)
-#define ERROR_LOG(format, ...)		VAR_LOG(ELogLevel_Error, format, ##__VA_ARGS__)
-#define WARNING_LOG(format, ...)	VAR_LOG(ELogLevel_Warn, format, ##__VA_ARGS__)
-#define SYSTEM_LOG(format, ...)		VAR_LOG(ELogLevel_System, format, ##__VA_ARGS__)
-#define DEBUG_LOG(format, ...)		VAR_LOG(ELogLevel_Debug, format, ##__VA_ARGS__)
+#define NORMAL_LOG(format, ...)		VAR_LOG(chen::ELogLevel_Info, format, ##__VA_ARGS__)
+#define ERROR_LOG(format, ...)		VAR_LOG(chen::ELogLevel_Error, format, ##__VA_ARGS__)
+#define WARNING_LOG(format, ...)	VAR_LOG(chen::ELogLevel_Warn, format, ##__VA_ARGS__)
+#define SYSTEM_LOG(format, ...)		VAR_LOG(chen::ELogLevel_System, format, ##__VA_ARGS__)
+#define DEBUG_LOG(format, ...)		VAR_LOG(chen::ELogLevel_Debug, format, ##__VA_ARGS__)
 
 #define NORMAL_EX_LOG(format, ...)	NORMAL_LOG("[%s][%d]" format, FUNCTION, __LINE__, ##__VA_ARGS__)
 
