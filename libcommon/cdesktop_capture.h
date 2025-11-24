@@ -71,6 +71,8 @@ namespace chen {
         webrtc::scoped_refptr<webrtc::I420Buffer> i420_buffer_;
     };
 
+	double GetCaptureProcessDelayMs();
+
 }
 
 

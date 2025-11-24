@@ -228,7 +228,7 @@ namespace chen {
 					 if (stats.type() == webrtc::RTCOutboundRtpStreamStats::kType)
 					{
 						const auto& outbound = stats.cast_to<webrtc::RTCOutboundRtpStreamStats>();
-						if ( outbound.content_type  &&  *outbound.content_type != "video")
+						if (outbound.content_type && *outbound.content_type != "video")
 						{
 							continue;
 						}
@@ -262,10 +262,24 @@ namespace chen {
 						{
 							video_json["encoder"] = *outbound.encoder_implementation;
 						}
-						if (outbound.ssrc )
+						if (outbound.ssrc)
 						{
 							video_json["ssrc"] = *outbound.ssrc;
 						}
+
+						if (outbound.total_encode_time && outbound.frames_encoded && *outbound.frames_encoded > 0)
+						{
+							double encode_delay =
+								(*outbound.total_encode_time / *outbound.frames_encoded) * 1000.0;
+							video_json["encodeDelayMs"] = encode_delay;
+						}
+						if (outbound.total_packet_send_delay && outbound.packets_sent && *outbound.packets_sent > 0)
+						{
+							double send_delay =
+								(*outbound.total_packet_send_delay / *outbound.packets_sent) * 1000.0;
+							video_json["sendDelayMs"] = send_delay;
+						}
+						video_json["captureDelayMs"] = GetCaptureProcessDelayMs();
 					}
 					else if (stats.type() == webrtc::RTCIceCandidatePairStats::kType)
 					{
@@ -308,7 +322,7 @@ namespace chen {
 						{
 							network_json["packetsSent"] = *pair.packets_sent;
 						}
-						if (pair.packets_received )
+						if (pair.packets_received)
 						{
 							network_json["packetsReceived"] = *pair.packets_received;
 						}
@@ -330,13 +344,18 @@ namespace chen {
 						{
 							network_json["transportBytesSent"] = *transport.bytes_sent;
 						}
-						if (transport.bytes_received )
+						if (transport.bytes_received)
 						{
 							network_json["transportBytesReceived"] = *transport.bytes_received;
 						}
 						extra_json["transportId"] = transport.id();
 					}
 				}
+				if (network_json.contains("rttMs"))
+				{
+					network_json["networkDelayMs"] = network_json["rttMs"];
+				}
+
 				for (const auto& line : log_lines)
 				{
 					NORMAL_EX_LOG("%s", line.c_str());

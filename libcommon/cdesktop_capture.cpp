@@ -30,6 +30,12 @@ purpose:		assertion macros
 #include "desktop_capture_source.h"
 #include <algorithm>
 #include <chrono>
+#include <atomic>
+
+namespace {
+	std::atomic<double> g_capture_process_delay_ms{ 0.0 };
+}
+
 namespace chen {
 
 
@@ -107,6 +113,8 @@ namespace chen {
             timestamp = timestamp_curr;
         }
 
+        auto processing_start = webrtc::TimeMicros();
+
         // Convert DesktopFrame to VideoFrame
         if (result != webrtc::DesktopCapturer::Result::SUCCESS) {
             RTC_LOG(LS_ERROR) << "Capture frame faiiled, result: " << result;
@@ -143,6 +151,8 @@ namespace chen {
         s_input_device.set_point(width, height);
         // captureFrame.set_ntp_time_ms(0);
         DesktopCaptureSource::OnFrame(captureFrame);
+        auto processing_end = webrtc::TimeMicros();
+        g_capture_process_delay_ms.store((processing_end - processing_start) / 1000.0, std::memory_order_relaxed);
         // rtc media info 
        /* DesktopCaptureSource::OnFrame(
             webrtc::VideoFrame(i420_buffer_, 0, 0, webrtc::kVideoRotation_0));*/
@@ -184,5 +194,10 @@ namespace chen {
         if (capture_thread_ && capture_thread_->joinable()) {
             capture_thread_->join();
         }
+    }
+
+    double GetCaptureProcessDelayMs()
+    {
+        return g_capture_process_delay_ms.load(std::memory_order_relaxed);
     }
 }
