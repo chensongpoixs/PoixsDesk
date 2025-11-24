@@ -84,9 +84,9 @@ namespace  chen {
 		for (const auto& stats : *report)
 		{
 			// 视频编码信息：尺寸、帧率、编码器、发送统计等
-			if (stats.type() == webrtc::RTCOutboundRTPStreamStats::kType)
+			if (stats.type() == webrtc::RTCOutboundRtpStreamStats::kType)
 			{
-				const auto& outbound = stats.cast_to<webrtc::RTCOutboundRTPStreamStats>();
+				const auto& outbound = stats.cast_to<webrtc::RTCOutboundRtpStreamStats>();
 				log_lines.emplace_back(FormatVideo(outbound));
 
 				if (outbound.frame_width)

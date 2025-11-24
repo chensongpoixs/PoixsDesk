@@ -164,7 +164,7 @@ namespace chen {
 		/**
 		* @brief 将视频相关 stats 格式化为易读字符串，便于在日志中快速定位
 		*/
-		static std::string FormatVideo(const webrtc::RTCOutboundRTPStreamStats& outbound)
+		static std::string FormatVideo(const webrtc::RTCOutboundRtpStreamStats& outbound)
 		{
 			std::ostringstream oss;
 			oss << "[RTC Video] ";
