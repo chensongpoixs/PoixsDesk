@@ -166,6 +166,11 @@ namespace  chen {
 					double bw = *pair.available_incoming_bitrate;
 					network_json["availableIncomingBitrateKbps"] = bw / 1000.0;
 				}
+				if (pair.bytes_sent && pair.total_round_trip_time  && *pair.total_round_trip_time > 0)
+				{
+					double bitrate_bps = (*pair.bytes_sent * 8.0) / (*pair.total_round_trip_time);
+					network_json["currentBitrateKbps"] = (bitrate_bps / 1000.0);
+				}
 				if (pair.bytes_sent)
 				{
 					network_json["bytesSent"] = *pair.bytes_sent;

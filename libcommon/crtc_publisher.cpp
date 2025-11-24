@@ -194,7 +194,7 @@ namespace chen {
 		}
 		else
 		{
-			stats_endpoint_url_ = "http://192.168.1.172:8089/api/stats";
+			stats_endpoint_url_ = "http://192.168.9.172:8089/api/stats";
 		}
 		stats_endpoint_ready_ = ParseStatsEndpoint(stats_endpoint_url_, stats_endpoint_);
 		if (!stats_endpoint_ready_)
