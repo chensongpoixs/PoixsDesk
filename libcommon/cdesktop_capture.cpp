@@ -28,6 +28,8 @@ purpose:		assertion macros
 #include "client.h"
 #include "cinput_device.h"
 #include "desktop_capture_source.h"
+#include <algorithm>
+#include <chrono>
 namespace chen {
 
 
@@ -158,9 +160,20 @@ namespace chen {
         capture_thread_.reset(new std::thread([this]() {
             dc_->Start(this);
 
+            using clock = std::chrono::steady_clock;
+            const auto frame_interval = std::chrono::microseconds(
+                static_cast<int64_t>(1000000 / std::max<size_t>(1, fps_)));
+            auto next_wakeup = clock::now();
             while (start_flag_) {
+                next_wakeup += frame_interval;
                 dc_->CaptureFrame();
-                 std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps_));
+                const auto now = clock::now();
+                if (now < next_wakeup) {
+                    std::this_thread::sleep_until(next_wakeup);
+                } else {
+                    // 如果捕获耗时较长，立即进行下一帧以追赶节奏
+                    next_wakeup = now;
+                }
             }
             }));
     }
