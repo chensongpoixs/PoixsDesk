@@ -22,9 +22,20 @@ purpose:		rtc_status _logger
 安静，淡然，代码就是我的一切，写代码就是我本心回归的最好方式，我还没找到本心猎手，但我相信，顺着这个线索，我一定能顺藤摸瓜，把他揪出来。
 ************************************************************************************************/
 #include "crtc_stats_logger.h"
+#include <mutex>
+#include <unordered_map>
 
 namespace  chen {
 	namespace {
+
+		struct BitrateSample
+		{
+			double timestamp_s = 0.0;
+			uint64_t bytes_sent = 0;
+		};
+
+		std::mutex g_bitrate_mutex;
+		std::unordered_map<std::string, BitrateSample> g_bitrate_samples;
 
 		/**
 		* @brief 简单的 HTTP POST 封装，用于把统计结果推送到 PushStatisServer
@@ -81,6 +92,7 @@ namespace  chen {
 		nlohmann::json video_json = nlohmann::json::object();
 		nlohmann::json network_json = nlohmann::json::object();
 		nlohmann::json extra_json = nlohmann::json::object();
+		const double report_timestamp_s = report->timestamp().us() / 1000000.0;
 		for (const auto& stats : *report)
 		{
 			// 视频编码信息：尺寸、帧率、编码器、发送统计等
@@ -104,6 +116,33 @@ namespace  chen {
 				if (outbound.bytes_sent)
 				{
 					video_json["bytesSent"] = *outbound.bytes_sent;
+					double bitrate_MBps = 0.0;
+					std::string bitrate_key = stream_id_;
+					if (outbound.ssrc)
+					{
+						bitrate_key += ":" + std::to_string(*outbound.ssrc);
+					}
+					{
+						std::lock_guard<std::mutex> lock(g_bitrate_mutex);
+						auto& sample = g_bitrate_samples[bitrate_key];
+						if (sample.timestamp_s > 0.0 &&
+							report_timestamp_s > sample.timestamp_s &&
+							*outbound.bytes_sent >= sample.bytes_sent)
+						{
+							double delta_bytes = static_cast<double>(*outbound.bytes_sent - sample.bytes_sent);
+							double delta_time = report_timestamp_s - sample.timestamp_s;
+							if (delta_time > 0.0)
+							{
+								bitrate_MBps = (delta_bytes / 1024.0 / 1024.0) / delta_time;
+							}
+						}
+						sample.timestamp_s = report_timestamp_s;
+						sample.bytes_sent = *outbound.bytes_sent;
+					}
+					if (bitrate_MBps > 0.0)
+					{
+						network_json["currentBitrateMBps"] = bitrate_MBps;
+					}
 				}
 				if (outbound.packets_sent)
 				{
@@ -165,12 +204,6 @@ namespace  chen {
 				{
 					double bw = *pair.available_incoming_bitrate;
 					network_json["availableIncomingBitrateKbps"] = bw / 1000.0;
-				}
-				if (pair.bytes_sent && pair.total_round_trip_time && *pair.total_round_trip_time > 0)
-				{
-					double bitrate_MBps =
-						((*pair.bytes_sent) / 1024.0 / 1024.0) / (*pair.total_round_trip_time);
-					network_json["currentBitrateMBps"] = bitrate_MBps;
 				}
 				if (pair.bytes_sent)
 				{
