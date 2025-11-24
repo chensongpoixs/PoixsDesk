@@ -934,7 +934,8 @@ namespace chen {
 		FEvent KeyDownEvent(EventType::KEY_DOWN);
 		KeyDownEvent.SetKeyDown(KeyCode, Repeat != 0);
 		NORMAL_LOG("OnKeyDown==KeyCode = %u, Repeat = %u", KeyCode, Repeat);
-		keyboard_update(KeyDownEvent, VK_SPACE, false, 0);
+		// 使用真实的虚拟键码转发给本地输入栈
+		keyboard_update(KeyDownEvent, static_cast<uint16_t>(KeyCode), false, 0);
 		// TODO: 触发本地按键事件（ProcessEvent）
 		// KeyDownEvent.GetKeyDown();
 		// ProcessEvent(KeyDownEvent);
@@ -1087,7 +1088,8 @@ namespace chen {
 		FEvent KeyUpEvent(EventType::KEY_UP);
 		KeyUpEvent.SetKeyUp(KeyCode);
 		NORMAL_LOG("OnKeyUp==KeyCode = %u", KeyCode);
-		keyboard_update(KeyUpEvent, VK_SPACE, true, 0);
+		// 使用真实的虚拟键码转发按键释放事件
+		keyboard_update(KeyUpEvent, static_cast<uint16_t>(KeyCode), true, 0);
 		return true;
 	}
 	
