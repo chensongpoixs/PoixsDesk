@@ -105,7 +105,7 @@ PoixsDesk/
 
 1. **克隆项目**
    ```bash
-   git clone <repository_url>
+   git clone https://github.com/chensongpoixs/PoixsDesk.git
    cd PoixsDesk
    ```
 
