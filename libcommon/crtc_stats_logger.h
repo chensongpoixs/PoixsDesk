@@ -77,19 +77,140 @@ purpose:		rtc_status _logger
 namespace chen {
 
 	/**
-	* @brief WebRTC 统计上报工具
-	*
-	* - 继承自 webrtc::RTCStatsCollectorCallback，供 PeerConnection::GetStats 异步回调使用。
-	* - 解析 report 中的关键指标，转为内部 JSON（视频信息、网络信息、额外字段）。
-	* - 视配置决定是否通过 HTTP 推送到 PushStatisServer，用于推流监控面板。
+	*  @author chensong
+	*  @date 2023-02-13
+	*  @brief WebRTC 统计上报工具类（WebRTC Statistics Reporting Tool Class）
+	*  
+	*  RtcStatsLogger类用于收集和上报WebRTC推流端的实时统计信息。
+	*  继承自webrtc::RTCStatsCollectorCallback，通过PeerConnection::GetStats异步回调获取统计数据。
+	*  
+	*  WebRTC统计上报工具架构（WebRTC Statistics Reporting Tool Architecture）：
+	*  
+	*    0                   1                   2                   3
+	*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |                    RtcStatsLogger Class                       |
+	*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+	*   |  |  PeerConnection::GetStats() 异步调用                        | |
+	*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+	*   |  |  OnStatsDelivered() 回调处理                                | |
+	*   |  |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | |
+	*   |  |  |  解析 RTCOutboundRtpStreamStats（视频统计）              | | |
+	*   |  |  |  - 分辨率、帧率、编码器、发送统计                        | | |
+	*   |  |  |  - 编码延迟、发送延迟、采集延迟                          | | |
+	*   |  |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | |
+	*   |  |  |  解析 RTCIceCandidatePairStats（网络统计）                | | |
+	*   |  |  |  - RTT、可用带宽、收发字节数、包数                        | | |
+	*   |  |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | |
+	*   |  |  |  解析 RTCTransportStats（传输层统计）                     | | |
+	*   |  |  |  - DTLS状态、传输字节数                                  | | |
+	*   |  |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | |
+	*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+	*   |  |  构造JSON并输出日志                                         | |
+	*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+	*   |  |  通过HTTP POST推送到PushStatisServer（可选）                | |
+	*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*  
+	*  统计信息处理流程（Statistics Processing Flow）：
+	*  
+	*    0                   1                   2                   3
+	*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  1. PeerConnection::GetStats() 异步获取统计报告                |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  2. OnStatsDelivered() 回调被调用                              |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  3. 遍历统计报告中的所有统计项                                 |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  4. 根据统计类型解析数据：                                      |
+	*   |  |  - RTCOutboundRtpStreamStats: 视频编码和发送统计            |
+	*   |  |  - RTCIceCandidatePairStats: 网络候选对统计                |
+	*   |  |  - RTCTransportStats: 传输层统计                            |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  5. 计算延迟指标：编码延迟、发送延迟、采集延迟、网络延迟        |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  6. 计算当前码流（基于字节数增量和时间戳差值）                  |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  7. 构造JSON对象（video、network、extra）                      |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  8. 输出格式化日志到控制台                                     |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  9. 如果启用上传，通过HTTP POST推送到PushStatisServer          |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*  
+	*  统计信息分类（Statistics Categories）：
+	*  
+	*    0                   1                   2                   3
+	*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  视频统计（Video Statistics）:                                 |
+	*   |  - 分辨率（width、height）                                     |
+	*   |  - 帧率（fps）                                                 |
+	*   |  - 编码帧数（framesEncoded）                                   |
+	*   |  - 发送字节数（bytesSent）                                     |
+	*   |  - 发送包数（packetsSent）                                     |
+	*   |  - 编码器实现（encoder）                                       |
+	*   |  - SSRC（同步源标识）                                         |
+	*   |  - 编码延迟（encodeDelayMs）                                   |
+	*   |  - 发送延迟（sendDelayMs）                                    |
+	*   |  - 采集延迟（captureDelayMs）                                 |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  网络统计（Network Statistics）:                               |
+	*   |  - RTT（往返时延，rttMs）                                      |
+	*   |  - 可用上行带宽（availableOutgoingBitrateKbps）                |
+	*   |  - 可用下行带宽（availableIncomingBitrateKbps）                |
+	*   |  - 发送字节数（bytesSent）                                     |
+	*   |  - 接收字节数（bytesReceived）                                 |
+	*   |  - 发送包数（packetsSent）                                     |
+	*   |  - 接收包数（packetsReceived）                                 |
+	*   |  - 当前码流（currentBitrateMBps）                              |
+	*   |  - 网络延迟（networkDelayMs）                                  |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  传输层统计（Transport Statistics）:                           |
+	*   |  - 传输发送字节数（transportBytesSent）                        |
+	*   |  - 传输接收字节数（transportBytesReceived）                    |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*  
+	*  @note 继承自webrtc::RTCStatsCollectorCallback，用于异步回调
+	*  @note 支持WebRTC m142版本的统计API
+	*  @note 使用线程安全的码流计算，支持多路推流
+	*  @note 支持HTTP和HTTPS两种协议推送统计信息
+	*  @note 统计信息会同时输出到日志和推送到监控服务器
+	*  
+	*  使用示例：
+	*  @code
+	*  crtc_publisher::StatsEndpoint endpoint;
+	*  endpoint.host = "127.0.0.1";
+	*  endpoint.port = 8089;
+	*  endpoint.path = "/api/stats";
+	*  endpoint.secure = false;
+	*  
+	*  auto logger = webrtc::make_ref_counted<RtcStatsLogger>(
+	*      "stream-001", true, endpoint);
+	*  peer_connection->GetStats(logger.get());
+	*  @endcode
 	*/
 	class RtcStatsLogger : public webrtc::RTCStatsCollectorCallback
 	{
 	public:
 		/**
-		* @param stream_id			推流端唯一 ID（通常由机器名和进程号组成）
-		* @param enable_upload		是否允许向 PushStatisServer 上报
-		* @param endpoint			PushStatisServer 的连接参数
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 构造函数（Constructor）
+		*  
+		*  创建RtcStatsLogger对象，初始化推流端标识和上报配置。
+		*  
+		*  @param stream_id 推流端唯一标识（Stream ID），通常由机器名和进程号组成
+		*  @param enable_upload 是否允许向PushStatisServer上报（Enable Upload Flag）
+		*  @param endpoint PushStatisServer的连接参数（Connection Endpoint）
+		*                  - host: 服务器地址
+		*                  - port: 服务器端口
+		*                  - path: API路径
+		*                  - secure: 是否使用HTTPS
+		*  
+		*  @note 使用std::move优化参数传递，避免不必要的拷贝
+		*  @note stream_id用于标识不同的推流端，便于监控面板区分
 		*/
 		RtcStatsLogger(std::string stream_id,
 			bool enable_upload,
@@ -100,13 +221,47 @@ namespace chen {
 		}
 
 		/**
-		* @brief WebRTC stats 回调入口，report 生命周期仅在函数体内有效
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief WebRTC统计报告回调函数（WebRTC Statistics Report Callback）
+		*  
+		*  PeerConnection::GetStats()的异步回调函数。当统计报告准备好时被调用。
+		*  
+		*  @param report WebRTC统计报告智能指针（Statistics Report Smart Pointer）
+		*  
+		*  @note report的生命周期仅在函数体内有效，不应保存引用
+		*  @note 函数会解析报告中的所有统计项，提取关键指标
+		*  @note 如果启用上传，会在独立线程中异步推送统计信息
+		*  @note 统计信息会同时输出到日志，便于本地调试
+		*  
+		*  处理流程：
+		*  1. 遍历统计报告中的所有统计项
+		*  2. 根据统计类型（视频/网络/传输）解析数据
+		*  3. 计算延迟指标和当前码流
+		*  4. 构造JSON对象
+		*  5. 输出日志
+		*  6. 如果启用，推送统计信息到监控服务器
 		*/
 		void OnStatsDelivered(const webrtc::scoped_refptr<const webrtc::RTCStatsReport>& report) override;
 
 	private:
 		/**
-		* @brief 辅助输出整型字段（含 is_defined 判断）
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 辅助输出整型字段模板函数（Helper Template Function for Integral Output）
+		*  
+		*  将WebRTC统计成员中的整型值输出到字符串流。
+		*  支持WebRTC m142版本的RTCStatsMember类型，自动判断字段是否定义。
+		*  
+		*  @tparam MemberT WebRTC统计成员类型（RTCStatsMember<T>）
+		*  @param label 字段标签（Field Label），用于标识字段名称
+		*  @param member 统计成员引用（Statistics Member Reference），支持operator bool()判断是否定义
+		*  @param oss 输出字符串流（Output String Stream），用于构建格式化字符串
+		*  
+		*  @note 使用operator bool()判断成员是否定义（m142兼容）
+		*  @note 使用operator*()获取成员值
+		*  @note 输出格式：label=value 
+		*  @note 如果成员未定义，不输出任何内容
 		*/
 		template <typename MemberT>
 		static void AppendIntegral(const char* label, const MemberT& member, std::ostringstream& oss)
@@ -118,7 +273,20 @@ namespace chen {
 		}
 
 		/**
-		* @brief 辅助输出字符串字段
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 辅助输出字符串字段模板函数（Helper Template Function for String Output）
+		*  
+		*  将WebRTC统计成员中的字符串值输出到字符串流。
+		*  
+		*  @tparam MemberT WebRTC统计成员类型（RTCStatsMember<T>）
+		*  @param label 字段标签（Field Label），用于标识字段名称
+		*  @param member 统计成员引用（Statistics Member Reference），支持operator bool()判断是否定义
+		*  @param oss 输出字符串流（Output String Stream），用于构建格式化字符串
+		*  
+		*  @note 使用std::quoted()为字符串添加引号，便于阅读
+		*  @note 输出格式：label="value" 
+		*  @note 如果成员未定义，不输出任何内容
 		*/
 		template <typename MemberT>
 		static void AppendString(const char* label, const MemberT& member, std::ostringstream& oss)
@@ -130,7 +298,20 @@ namespace chen {
 		}
 
 		/**
-		* @brief 辅助输出布尔字段
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 辅助输出布尔字段模板函数（Helper Template Function for Boolean Output）
+		*  
+		*  将WebRTC统计成员中的布尔值输出到字符串流。
+		*  
+		*  @tparam MemberT WebRTC统计成员类型（RTCStatsMember<T>）
+		*  @param label 字段标签（Field Label），用于标识字段名称
+		*  @param member 统计成员引用（Statistics Member Reference），支持operator bool()判断是否定义
+		*  @param oss 输出字符串流（Output String Stream），用于构建格式化字符串
+		*  
+		*  @note 布尔值输出为"true"或"false"字符串
+		*  @note 输出格式：label=true 或 label=false
+		*  @note 如果成员未定义，不输出任何内容
 		*/
 		template <typename MemberT>
 		static void AppendBool(const char* label, const MemberT& member, std::ostringstream& oss)
@@ -142,7 +323,28 @@ namespace chen {
 		}
 
 		/**
-		* @brief 辅助输出浮点字段，可附带单位
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 辅助输出浮点字段模板函数（Helper Template Function for Double Output）
+		*  
+		*  将WebRTC统计成员中的浮点值输出到字符串流，支持单位转换和单位显示。
+		*  
+		*  @tparam MemberT WebRTC统计成员类型（RTCStatsMember<T>）
+		*  @param label 字段标签（Field Label），用于标识字段名称
+		*  @param member 统计成员引用（Statistics Member Reference），支持operator bool()判断是否定义
+		*  @param multiplier 单位转换乘数（Unit Conversion Multiplier），用于单位转换（如秒转毫秒：1000.0）
+		*  @param unit 单位字符串（Unit String），可选，用于显示单位（如"ms"、"kbps"）
+		*  @param oss 输出字符串流（Output String Stream），用于构建格式化字符串
+		*  
+		*  @note 使用std::fixed和std::setprecision(2)固定小数点后2位
+		*  @note 输出格式：label=valueunit （如果unit不为空）
+		*  @note 如果成员未定义，不输出任何内容
+		*  
+		*  使用示例：
+		*  @code
+		*  AppendDouble("rtt_ms", pair.current_round_trip_time, 1000.0, "ms", oss);
+		*  // 输出：rtt_ms=45.23ms
+		*  @endcode
 		*/
 		template <typename MemberT>
 		static void AppendDouble(const char* label, const MemberT& member, double multiplier, const char* unit, std::ostringstream& oss)
@@ -162,7 +364,24 @@ namespace chen {
 		}
 
 		/**
-		* @brief 将视频相关 stats 格式化为易读字符串，便于在日志中快速定位
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 格式化视频统计信息（Format Video Statistics）
+		*  
+		*  将RTCOutboundRtpStreamStats统计信息格式化为易读的字符串，便于在日志中快速定位。
+		*  
+		*  @param outbound 出站RTP流统计对象（Outbound RTP Stream Statistics Object）
+		*  
+		*  @return 格式化后的字符串（Formatted String），包含所有视频相关统计信息
+		*  
+		*  @note 输出格式：[RTC Video] track="..." ssrc=12345 width=1920 height=1080 fps=30.00 ...
+		*  @note 包含字段：track ID、SSRC、分辨率、帧率、编码帧数、发送字节数、发送包数、编码器
+	*  
+		*  使用示例：
+		*  @code
+		*  std::string video_info = FormatVideo(outbound_stats);
+		*  // 输出：[RTC Video] track="video_track_0" ssrc=12345 width=1920 height=1080 fps=30.00 ...
+		*  @endcode
 		*/
 		static std::string FormatVideo(const webrtc::RTCOutboundRtpStreamStats& outbound)
 		{
@@ -181,7 +400,24 @@ namespace chen {
 		}
 
 		/**
-		* @brief 将候选对（ICE）统计格式化为日志
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 格式化ICE候选对统计信息（Format ICE Candidate Pair Statistics）
+		*  
+		*  将RTCIceCandidatePairStats统计信息格式化为易读的字符串。
+		*  
+		*  @param pair ICE候选对统计对象（ICE Candidate Pair Statistics Object）
+		*  
+		*  @return 格式化后的字符串（Formatted String），包含所有网络相关统计信息
+		*  
+		*  @note 输出格式：[RTC Network] pair=xxx state="succeeded" nominated=true rtt_ms=45.23ms ...
+		*  @note 包含字段：候选对ID、状态、提名标志、RTT、可用带宽、收发字节数、收发包数、本地/远程候选ID
+		*  
+		*  使用示例：
+		*  @code
+		*  std::string network_info = FormatCandidate(pair_stats);
+		*  // 输出：[RTC Network] pair=xxx state="succeeded" nominated=true rtt_ms=45.23ms ...
+		*  @endcode
 		*/
 		static std::string FormatCandidate(const webrtc::RTCIceCandidatePairStats& pair)
 		{
@@ -201,7 +437,24 @@ namespace chen {
 		}
 
 		/**
-		* @brief 将 transport 统计格式化为日志字符串
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 格式化传输层统计信息（Format Transport Statistics）
+		*  
+		*  将RTCTransportStats统计信息格式化为易读的字符串。
+		*  
+		*  @param transport 传输层统计对象（Transport Statistics Object）
+		*  
+		*  @return 格式化后的字符串（Formatted String），包含所有传输层相关统计信息
+		*  
+		*  @note 输出格式：[RTC Transport] id=xxx dtls_state="connected" candidate_pair="xxx" ...
+		*  @note 包含字段：传输ID、DTLS状态、候选对ID、收发字节数
+		*  
+		*  使用示例：
+		*  @code
+		*  std::string transport_info = FormatTransport(transport_stats);
+		*  // 输出：[RTC Transport] id=xxx dtls_state="connected" ...
+		*  @endcode
 		*/
 		static std::string FormatTransport(const webrtc::RTCTransportStats& transport)
 		{
@@ -214,9 +467,9 @@ namespace chen {
 			return oss.str();
 		}
 
-		std::string stream_id_;                    ///< 推流端唯一标识
-		bool upload_enabled_;                     ///< 是否向 PushStatisServer 上报
-		crtc_publisher::StatsEndpoint endpoint_;  ///< PushStatisServer 连接参数
+		std::string stream_id_;                    /**< 推流端唯一标识（Stream ID），用于区分不同的推流端，通常由机器名和进程号组成 */
+		bool upload_enabled_;                     /**< 是否向PushStatisServer上报标志（Upload Enabled Flag），true表示启用HTTP POST推送 */
+		crtc_publisher::StatsEndpoint endpoint_;  /**< PushStatisServer连接参数（Connection Endpoint），包含host、port、path、secure等信息 */
 	};
 }
 

@@ -24,23 +24,91 @@
 #include <cstdarg>
 
 namespace chen {
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 全局异步日志对象指针（Global Async Log Object Pointer）
+	*  
+	*  静态全局变量，指向casync_log异步日志对象。用于统一管理日志输出。
+	*  
+	*  @note 通过clog::init()初始化
+	*  @note 通过clog::destroy()释放
+	*  @note 如果为nullptr，表示日志系统未初始化
+	*/
 	static casync_log* g_log_ptr = nullptr;
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 默认构造函数实现（Default Constructor Implementation）
+	*  
+	*  初始化日志对象，缓冲区长度为0，日志级别为ELogLevel_None。
+	*  
+	*  @note 使用此构造函数创建的日志对象不会输出任何内容
+	*/
 	clog::clog()
 		:m_len(0)
 		, m_level(ELogLevel_None)
 	{
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 带日志级别的构造函数实现（Constructor with Log Level Implementation）
+	*  
+	*  初始化日志对象，缓冲区长度为0，日志级别为指定值。
+	*  
+	*  @param level 日志级别（ELogLevelType枚举值）
+	*/
 	clog::clog(ELogLevelType level)
 		: m_len(0)
 		, m_level(level)
 	{
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 带日志级别和位置信息的构造函数实现（Constructor with Log Level and Location Implementation）
+	*  
+	*  初始化日志对象，并在缓冲区中写入函数名和行号信息。
+	*  格式：[函数名:行号] 
+	*  
+	*  @param level 日志级别（ELogLevelType枚举值）
+	*  @param func 函数名（通常使用FUNCTION宏）
+	*  @param line 行号（通常使用__LINE__宏）
+	*  
+	*  @note 自动在日志消息前添加位置信息，便于定位问题
+	*/
 	clog::clog(ELogLevelType level, const char * func, int line)
 		: m_len(0)
 		, m_level(level)
 	{
 		*this << '[' << func << ':' << line << "] ";
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 初始化日志系统实现（Initialize Log System Implementation）
+	*  
+	*  创建全局异步日志对象并初始化，配置日志存储方式。
+	*  
+	*  @param storage_type 日志存储类型
+	*                      - ELogStorageScreen: 仅输出到控制台
+	*                      - ELogStorageFile: 仅输出到文件
+	*                      - ELogStoragePost: 仅发送到远程服务器
+	*                      - ELogStorageScreenFile: 输出到控制台和文件
+	*                      - ELogStorageScreenFilePost: 输出到控制台、文件和远程服务器
+	*  @param host 远程服务器地址
+	*  @param port 远程服务器端口
+	*  
+	*  @return true 初始化成功，false 初始化失败
+	*  
+	*  @note 只能初始化一次，重复调用会返回false
+	*  @note 如果内存分配失败或casync_log初始化失败，返回false
+	*/
 	bool clog::init( ELogStorageType storage_type, const std::string& host , uint32 port   )
 	{
 		printf("host = %s, port = %lu, storage_type = %d\n", host.c_str(), port, storage_type);
@@ -63,6 +131,21 @@ namespace chen {
 		return true;
 	}
 	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 格式化日志输出实现（Formatted Log Output Implementation）
+	*  
+	*  使用类似printf的格式化字符串输出日志。支持可变参数列表。
+	*  
+	*  @param level 日志级别（ELogLevelType枚举值）
+	*  @param format 格式化字符串（类似printf格式）
+	*  @param ... 可变参数列表
+	*  
+	*  @note 如果日志系统未初始化（g_log_ptr为nullptr），会输出错误信息到标准输出
+	*  @note 使用va_list处理可变参数，调用casync_log::append_var()进行实际输出
+	*  @note 格式化字符串支持标准C格式说明符（%d, %s, %f等）
+	*/
 	void clog::var_log(ELogLevelType level, const char * format, ...)
 	{
 		if (!g_log_ptr)
@@ -76,6 +159,19 @@ namespace chen {
 		g_log_ptr->append_var(level, format, argptr);
 		va_end(argptr);
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 设置全局日志级别实现（Set Global Log Level Implementation）
+	*  
+	*  设置全局日志输出级别。只有小于等于此级别的日志才会被实际输出。
+	*  
+	*  @param level 日志级别（ELogLevelType枚举值）
+	*  
+	*  @note 如果日志系统未初始化（g_log_ptr为nullptr），函数直接返回，不执行任何操作
+	*  @note 日志级别从高到低：System > Fatal > Error > Warn > Info > Debug > None
+	*/
 	void clog::set_level(ELogLevelType level)
 	{
 		if (!g_log_ptr)
@@ -84,6 +180,18 @@ namespace chen {
 		}
 		g_log_ptr->set_level(level);
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 销毁日志系统实现（Destroy Log System Implementation）
+	*  
+	*  清理日志系统资源，释放异步日志对象。应在程序退出前调用。
+	*  
+	*  @note 如果日志系统未初始化（g_log_ptr为nullptr），函数直接返回，不执行任何操作
+	*  @note 调用casync_log::destroy()清理异步日志对象
+	*  @note 调用此函数后，所有日志操作将不再执行
+	*/
 	void clog::destroy()
 	{
 		if (g_log_ptr)
@@ -91,6 +199,18 @@ namespace chen {
 			g_log_ptr->destroy();
 		}
 	}
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 布尔值输出操作符实现（Boolean Output Operator Implementation）
+	*  
+	*  将布尔值转换为字符输出到日志缓冲区。true输出为'1'，false输出为'0'。
+	*  
+	*  @param value 布尔值
+	*  @return 返回当前日志对象的引用，支持链式调用
+	*  
+	*  @note 通过调用字符输出操作符实现
+	*/
 	clog & clog::operator<<(bool value)
 	{
 		if (value)
@@ -102,6 +222,20 @@ namespace chen {
 			return *this << '0';
 		}
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 字符输出操作符实现（Character Output Operator Implementation）
+	*  
+	*  将单个字符输出到日志缓冲区。
+	*  
+	*  @param value 字符值
+	*  @return 返回当前日志对象的引用，支持链式调用
+	*  
+	*  @note 如果缓冲区已满（m_len >= EBuf_Size），字符不会被添加
+	*  @note 缓冲区大小限制为1024字节（EBuf_Size）
+	*/
 	clog & clog::operator<<(char value)
 	{
 		if (m_len < EBuf_Size)
@@ -110,62 +244,229 @@ namespace chen {
 		}
 		return *this;
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 有符号字符输出操作符实现（Signed Char Output Operator Implementation）
+	*  
+	*  有符号字符输出操作符（当前实现为空，不执行任何操作）。
+	*  
+	*  @param value 有符号字符值（未使用）
+	*  @return 返回当前日志对象的引用，支持链式调用
+	*/
 	clog & clog::operator<<(signed char)
 	{
 		return *this;
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 无符号字符输出操作符实现（Unsigned Char Output Operator Implementation）
+	*  
+	*  无符号字符输出操作符（当前实现为空，不执行任何操作）。
+	*  
+	*  @param value 无符号字符值（未使用）
+	*  @return 返回当前日志对象的引用，支持链式调用
+	*/
 	clog & clog::operator<<(unsigned char)
 	{
 		return *this;
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 有符号短整型输出操作符实现（Signed Short Output Operator Implementation）
+	*  
+	*  有符号短整型输出操作符（当前实现为空，不执行任何操作）。
+	*  
+	*  @param value 有符号短整型值（未使用）
+	*  @return 返回当前日志对象的引用，支持链式调用
+	*/
 	clog & clog::operator<<(signed short)
 	{
 		return *this;
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 无符号短整型输出操作符实现（Unsigned Short Output Operator Implementation）
+	*  
+	*  无符号短整型输出操作符（当前实现为空，不执行任何操作）。
+	*  
+	*  @param value 无符号短整型值（未使用）
+	*  @return 返回当前日志对象的引用，支持链式调用
+	*/
 	clog & clog::operator<<(unsigned short)
 	{
 		return *this;
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 有符号整型输出操作符实现（Signed Int Output Operator Implementation）
+	*  
+	*  有符号整型输出操作符（当前实现为空，不执行任何操作）。
+	*  
+	*  @param value 有符号整型值（未使用）
+	*  @return 返回当前日志对象的引用，支持链式调用
+	*/
 	clog & clog::operator<<(signed int)
 	{
 		return *this;
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 无符号整型输出操作符实现（Unsigned Int Output Operator Implementation）
+	*  
+	*  无符号整型输出操作符（当前实现为空，不执行任何操作）。
+	*  
+	*  @param value 无符号整型值（未使用）
+	*  @return 返回当前日志对象的引用，支持链式调用
+	*/
 	clog & clog::operator<<(unsigned int)
 	{
 		return *this;
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 有符号长整型输出操作符实现（Signed Long Output Operator Implementation）
+	*  
+	*  有符号长整型输出操作符（当前实现为空，不执行任何操作）。
+	*  
+	*  @param value 有符号长整型值（未使用）
+	*  @return 返回当前日志对象的引用，支持链式调用
+	*/
 	clog & clog::operator<<(signed long)
 	{
 		return *this;
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 无符号长整型输出操作符实现（Unsigned Long Output Operator Implementation）
+	*  
+	*  无符号长整型输出操作符（当前实现为空，不执行任何操作）。
+	*  
+	*  @param value 无符号长整型值（未使用）
+	*  @return 返回当前日志对象的引用，支持链式调用
+	*/
 	clog & clog::operator<<(unsigned long)
 	{
 		return *this;
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 有符号长长整型输出操作符实现（Signed Long Long Output Operator Implementation）
+	*  
+	*  有符号长长整型输出操作符（当前实现为空，不执行任何操作）。
+	*  
+	*  @param value 有符号长长整型值（未使用）
+	*  @return 返回当前日志对象的引用，支持链式调用
+	*/
 	clog & clog::operator<<(signed long long)
 	{
 		return *this;
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 无符号长长整型输出操作符实现（Unsigned Long Long Output Operator Implementation）
+	*  
+	*  无符号长长整型输出操作符（当前实现为空，不执行任何操作）。
+	*  
+	*  @param value 无符号长长整型值（未使用）
+	*  @return 返回当前日志对象的引用，支持链式调用
+	*/
 	clog & clog::operator<<(unsigned long long)
 	{
 		return *this;
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief C风格字符串输出操作符实现（C-Style String Output Operator Implementation）
+	*  
+	*  C风格字符串输出操作符（当前实现为空，不执行任何操作）。
+	*  
+	*  @param value C风格字符串指针（未使用）
+	*  @return 返回当前日志对象的引用，支持链式调用
+	*/
 	clog & clog::operator<<(const char *)
 	{
 		return *this;
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 标准字符串输出操作符实现（Standard String Output Operator Implementation）
+	*  
+	*  标准字符串输出操作符（当前实现为空，不执行任何操作）。
+	*  
+	*  @param value 标准字符串引用（未使用）
+	*  @return 返回当前日志对象的引用，支持链式调用
+	*/
 	clog & clog::operator<<(const std::string &)
 	{
 		return *this;
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 单精度浮点数输出操作符实现（Float Output Operator Implementation）
+	*  
+	*  单精度浮点数输出操作符（当前实现为空，不执行任何操作）。
+	*  
+	*  @param value 单精度浮点数值（未使用）
+	*  @return 返回当前日志对象的引用，支持链式调用
+	*/
 	clog & clog::operator<<(float)
 	{
 		return *this;
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 双精度浮点数输出操作符实现（Double Output Operator Implementation）
+	*  
+	*  双精度浮点数输出操作符（当前实现为空，不执行任何操作）。
+	*  
+	*  @param value 双精度浮点数值（未使用）
+	*  @return 返回当前日志对象的引用，支持链式调用
+	*/
 	clog & clog::operator<<(double)
 	{
 		return *this;
 	}
+	
+	/**
+	*  @author chensong
+	*  @date 2019-04-30
+	*  @brief 析构函数实现（Destructor Implementation）
+	*  
+	*  日志对象析构时，如果缓冲区有内容且日志级别符合要求，
+	*  会将日志内容输出到配置的存储位置。
+	*  
+	*  @note 当前实现中析构函数不自动输出日志（已注释）
+	*  @note 日志输出由casync_log异步处理
+	*  @note 如果需要自动输出，可以取消注释相关代码
+	*/
 	clog::~clog()
 	{
 		//if (g_log_ptr && m_len > 0 /*&& m_level <= g_log_ptr->get_level()*/)

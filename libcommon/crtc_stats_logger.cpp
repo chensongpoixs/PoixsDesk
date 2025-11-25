@@ -28,18 +28,97 @@ purpose:		rtc_status _logger
 namespace  chen {
 	namespace {
 
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 码流采样结构体（Bitrate Sample Structure）
+		*  
+		*  用于存储码流计算的采样数据，包括时间戳和累计发送字节数。
+		*  
+		*  码流采样结构体布局（Bitrate Sample Structure Layout）：
+		*  
+		*    0                   1                   2                   3
+		*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*   |                    BitrateSample Structure                    |
+		*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+		*   |  |  timestamp_s: 时间戳（秒，double类型）                     | |
+		*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+		*   |  |  bytes_sent: 累计发送字节数（uint64_t类型）                 | |
+		*   |  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |
+		*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*  
+		*  @note 用于计算当前码流，通过两次采样之间的字节数增量除以时间差得到
+		*  @note timestamp_s使用WebRTC统计报告的时间戳（秒）
+		*  @note bytes_sent使用累计发送字节数，确保单调递增
+		*/
 		struct BitrateSample
 		{
-			double timestamp_s = 0.0;
-			uint64_t bytes_sent = 0;
+			double timestamp_s = 0.0;  /**< 时间戳（Timestamp），单位：秒（double类型），记录采样时间 */
+			uint64_t bytes_sent = 0;   /**< 累计发送字节数（Cumulative Bytes Sent），uint64_t类型，记录累计发送的字节数 */
 		};
 
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 码流采样互斥锁（Bitrate Sample Mutex）
+		*  
+		*  保护码流采样映射表的线程安全访问。
+		*  
+		*  @note 使用std::mutex保护g_bitrate_samples的并发访问
+		*  @note 支持多路推流并发计算码流
+		*/
 		std::mutex g_bitrate_mutex;
+		
+		/**
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief 码流采样映射表（Bitrate Sample Map）
+		*  
+		*  存储每路推流的码流采样数据，键为stream_id:ssrc，值为BitrateSample。
+		*  
+		*  @note 键格式：stream_id:ssrc（如："stream-001:12345"）
+		*  @note 支持多路推流，每路推流独立计算码流
+		*  @note 使用std::unordered_map提供O(1)查找性能
+		*  @note 线程安全，通过g_bitrate_mutex保护
+		*/
 		std::unordered_map<std::string, BitrateSample> g_bitrate_samples;
 
 		/**
-		* @brief 简单的 HTTP POST 封装，用于把统计结果推送到 PushStatisServer
-		* @return 请求是否成功（2xx）
+		*  @author chensong
+		*  @date 2023-02-13
+		*  @brief HTTP POST JSON数据封装函数（HTTP POST JSON Data Wrapper Function）
+		*  
+		*  简单的HTTP POST封装，用于把统计结果推送到PushStatisServer。
+		*  支持HTTP和HTTPS两种协议。
+		*  
+		*  @param endpoint PushStatisServer连接参数（Connection Endpoint）
+		*                  - host: 服务器地址
+		*                  - port: 服务器端口
+		*                  - path: API路径（如"/api/stats"）
+		*                  - secure: 是否使用HTTPS
+		*  @param payload JSON格式的请求体（Request Body），包含统计信息
+		*  
+		*  @return true 请求成功（HTTP状态码2xx），false 请求失败或异常
+		*  
+		*  @note 使用httplib库实现HTTP/HTTPS客户端
+		*  @note 连接超时设置为5秒
+		*  @note Content-Type设置为"application/json"
+		*  @note 如果启用HTTPS但httplib未编译SSL支持，会输出警告并返回false
+		*  @note 捕获所有异常，避免崩溃
+		*  
+		*  使用示例：
+		*  @code
+		*  crtc_publisher::StatsEndpoint endpoint;
+		*  endpoint.host = "127.0.0.1";
+		*  endpoint.port = 8089;
+		*  endpoint.path = "/api/stats";
+		*  endpoint.secure = false;
+		*  std::string json = R"({"streamId":"stream-001","video":{...}})";
+		*  if (HttpPostJson(endpoint, json)) {
+		*      // 推送成功
+		*  }
+		*  @endcode
 		*/
 		bool HttpPostJson(const chen::crtc_publisher::StatsEndpoint& endpoint, const std::string& payload)
 		{
@@ -83,8 +162,47 @@ namespace  chen {
 		}
 
 	} // namespace
+	
 	/**
-	* @brief 解析 WebRTC stats 并输出日志 / 构造 JSON
+	*  @author chensong
+	*  @date 2023-02-13
+	*  @brief 解析WebRTC统计报告并输出日志/构造JSON实现（Parse WebRTC Statistics Report and Output Log/Construct JSON Implementation）
+	*  
+	*  PeerConnection::GetStats()的异步回调函数实现。当统计报告准备好时被调用。
+	*  解析报告中的所有统计项，提取关键指标，构造JSON对象，输出日志，并可选择性地推送到监控服务器。
+	*  
+	*  @param report WebRTC统计报告智能指针（Statistics Report Smart Pointer）
+	*  
+	*  @note report的生命周期仅在函数体内有效，不应保存引用
+	*  @note 函数会遍历报告中的所有统计项，根据类型分别处理
+	*  @note 支持三种统计类型：RTCOutboundRtpStreamStats、RTCIceCandidatePairStats、RTCTransportStats
+	*  @note 计算延迟指标：编码延迟、发送延迟、采集延迟、网络延迟
+	*  @note 计算当前码流：基于字节数增量和时间戳差值
+	*  @note 如果启用上传，会在独立线程中异步推送统计信息
+	*  @note 统计信息会同时输出到日志，便于本地调试
+	*  
+	*  处理流程（Processing Flow）：
+	*  
+	*    0                   1                   2                   3
+	*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  1. 获取统计报告时间戳                                         |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  2. 遍历报告中的所有统计项                                     |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  3. 根据统计类型分类处理：                                      |
+	*   |  |  - RTCOutboundRtpStreamStats: 视频编码和发送统计            |
+	*   |  |  - RTCIceCandidatePairStats: 网络候选对统计                |
+	*   |  |  - RTCTransportStats: 传输层统计                            |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  4. 提取关键指标并构造JSON对象                                 |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  5. 计算延迟指标和当前码流                                     |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  6. 输出格式化日志到控制台                                     |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*   |  7. 如果启用上传，异步推送统计信息到监控服务器                  |
+	*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	*/
 	void RtcStatsLogger::OnStatsDelivered(const webrtc::scoped_refptr<const webrtc::RTCStatsReport>& report)
 	{
