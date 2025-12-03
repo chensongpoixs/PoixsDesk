@@ -337,7 +337,8 @@ namespace chen {
 		*  s_rtc_client.Loop("ws://example.com:8080/rtc");
 		*  @endcode
 		*/
-		void Loop(const char * rtc_url);
+		void Loop(const char* rtc_ip, uint16_t rtc_port, const char * app, const char * streamname);
+		//void Loop(const char * rtc_url);
 		
 		/**
 		*  @author chensong
@@ -583,6 +584,10 @@ namespace chen {
 		*  @note URL用于连接到信令服务器
 		*/
 		std::string rtc_url_;
+		std::string rtc_ip_;
+		uint16_t  rtc_port_;
+		std::string rtc_app_;
+		std::string rtc_stream_name_;
 	};
 
 #define  s_rtc_client chen::csingleton<chen::crtc_client>::get_instance()

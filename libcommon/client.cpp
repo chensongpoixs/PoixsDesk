@@ -88,7 +88,7 @@ namespace chen {
 
 		return true;
 	}
-	void crtc_client::Loop(const char* rtc_url/*const std::string& rtc_ip, uint16_t rtc_port, const std::string& roomName, const std::string& clientName
+	void crtc_client::Loop(const char* rtc_ip, uint16_t rtc_port, const char* rtc_app, const char* rtc_streamname/*const char* rtc_url*//*const std::string& rtc_ip, uint16_t rtc_port, const std::string& roomName, const std::string& clientName
 		, uint32_t reconnect_waittime*/)
 	{
 #if 1
@@ -106,9 +106,13 @@ namespace chen {
 		uint32_t elapse = 0;
 #endif //
 
-		rtc_url_ = rtc_url;
+		rtc_ip_ = rtc_ip;
+		rtc_port_ = rtc_port;
+		rtc_app_ = rtc_app;
+		rtc_stream_name_ = rtc_streamname;
+		//rtc_url_ = rtc_url;
 		//rtc_url_ = "webrtc:://127.0.0.1/live/test2222";
-		printf("rtc_url=%s\n", rtc_url_.c_str());
+		printf("rtc_ip_=%s, rtc_port = %u, rtc_app = %s, rtc_stream_name =%s\n", rtc_ip_.c_str(), rtc_port_, rtc_app_.c_str(), rtc_stream_name_.c_str());
 		while (!m_stoped)
 		{
 			pre_time = std::chrono::steady_clock::now();
@@ -252,16 +256,17 @@ namespace chen {
 #endif //
 
 #if 1
+		rtc_url_ = "webrtc://" + rtc_ip_ + ":" + std::to_string(rtc_port_) + "/" + rtc_app_ + "/" + rtc_stream_name_;
 		nlohmann::json data = {
 			{"type", "offer"},
 			{ "sdp", sdp},
 			{"streamurl", rtc_url_},
 			{"clientid",  "chensong"}
 		};
-
-		httplib::Client cli("http://192.168.9.172:8001");
+		std::string http_url = "http://" + rtc_ip_ + ":" + std::to_string(rtc_port_);
+		httplib::Client cli(http_url);
  
-		auto res = cli.Post("/rtc/push", data.dump(), "application/json");
+		auto res = cli.Post("/api/rtc/push", data.dump(), "application/json");
 		if (res && res->status == 200) {
 			std::cout << "Response: " << res->body << std::endl;
 			NORMAL_EX_LOG("%s", res->body.c_str());

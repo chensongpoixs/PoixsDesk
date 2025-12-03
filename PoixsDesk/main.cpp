@@ -84,6 +84,7 @@ int main(int argc, char *argv[])
 {
 
     printf("[argc  = %u][url = %s]\n", argc, argv[1]);
+    // cmd ip port  app stream
 
     /*std::unique_ptr<chen::crtc_client>			rtc_client_;
     rtc_client_ = std::make_unique<chen::crtc_client>();
@@ -92,7 +93,8 @@ int main(int argc, char *argv[])
         rtc_client_->Loop(argv[1]);
         }).detach();*/
     s_rtc_client.init(0);
-    s_rtc_client.Loop(argv[1]);
+
+    s_rtc_client.Loop(argv[1], std::atoi( argv[2]), argv[3], argv[4]);
 
 
     while (true)

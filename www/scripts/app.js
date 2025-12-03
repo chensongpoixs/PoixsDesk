@@ -500,6 +500,12 @@ const ToClientMessageType = {
 
 let VideoEncoderQP = "N/A";
 
+/**
+ * 从URL查询参数中获取指定参数的值
+ * 
+ * @param {string} name - 要获取的参数名称
+ * @returns {string|null} 参数的值，如果参数不存在则返回null
+ */
 function getUrlParam(name) {
     const reg = new RegExp(`(^|&)${name}=([^&]*)(&|$)`);
     const r = window.location.search.substr(1).match(reg);
