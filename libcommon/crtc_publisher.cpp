@@ -464,7 +464,7 @@ namespace chen {
 			RTC_LOG(LS_ERROR) << "OpenVideoCaptureDevice failed";
 		}
 
-		StartStatsLogger();
+		//StartStatsLogger();
 	}
 
 	void crtc_publisher::StartStatsLogger()

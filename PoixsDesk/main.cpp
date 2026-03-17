@@ -83,7 +83,8 @@ BOOL WINAPI  ConsoleCtrlHandler(DWORD type)
 int main(int argc, char *argv[])
 {
 
-    printf("[argc  = %u][url = %s]\n", argc, argv[1]);
+    printf("[argc  = %u][url = %s][argv[2] = %s] [argv[3] = %s] [argv[4] = %s]\n", argc, argv[1], argv[2], argv[3], argv[4]);
+   // fflush(stdout);
     // cmd ip port  app stream
 
     /*std::unique_ptr<chen::crtc_client>			rtc_client_;
