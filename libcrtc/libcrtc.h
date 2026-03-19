@@ -23,15 +23,15 @@
 
 #ifndef _LIB_CRTC__H_
 #define _LIB_CRTC__H_
-#include "cnet_types.h"
+//#include "cnet_types.h"
 #include <cstdio>
 #include <cstdlib>
 //#include "cnoncopyable.h"
-#include "casync_log.h"
+//#include "casync_log.h"
 
 #include <string>
-#include "crtc_publisher.h" 
-#include "csingleton.h"
+//#include "crtc_publisher.h" 
+//#include "csingleton.h"
 namespace chen {
 
 	enum ECrtcType
@@ -60,16 +60,16 @@ namespace chen {
 
 
 
-	typedef void (*device_info_callback)(const char * ip, uint16 port, const char * device_id, const char * device_code, const char * password);
+	typedef void (*device_info_callback)(const char * ip, uint16_t port, const char * device_id, const char * device_code, const char * password);
 
 
 
 	typedef void (*rtc_status_callback)(ECrtcType  type);
 
 
-	bool __declspec(dllimport) libcrtc_init(const char* ip, uint16 port, const char* device_id, const char* device_code, const char* password);
+	bool __declspec(dllimport) libcrtc_init(const char* ip, uint16_t port, const char* device_id, const char* device_code, const char* password);
 	
-	bool __declspec(dllimport) libcrtc_init(const char* ip, uint16 port, const char* token_device);
+	bool __declspec(dllimport) libcrtc_init(const char* ip, uint16_t port, const char* token_device);
 
 	void __declspec(dllimport) libcrtc_device_info_callback(device_info_callback callback);
 

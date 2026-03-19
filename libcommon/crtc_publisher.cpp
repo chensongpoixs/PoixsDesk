@@ -410,6 +410,7 @@ namespace chen {
 
 	void crtc_publisher::_add_tracks()
 	{
+		NORMAL_EX_LOG("");
 		if (!peer_connection_->GetSenders().empty())
 		{
 			return;  // Already added tracks.
@@ -430,7 +431,7 @@ namespace chen {
 #endif //
 		///////////////////////////////////////////////AUDIO///////////////////////////////////////////////////////////
 		webrtc::scoped_refptr<webrtc::AudioSourceInterface> audio_source_ptr = peer_connection_factory_->CreateAudioSource(webrtc::AudioOptions());
-
+		NORMAL_EX_LOG("");
 		webrtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track_ptr = peer_connection_factory_->CreateAudioTrack(kAudioLabel, audio_source_ptr.get());
 
 		auto result_or_error = peer_connection_->AddTrack(audio_track_ptr, { kStreamId });
@@ -439,6 +440,7 @@ namespace chen {
 			RTC_LOG(LS_ERROR) << "Failed to add audio track to PeerConnection: "
 				<< result_or_error.error().message();
 		}
+		NORMAL_EX_LOG("");
 		//////////////////////////////////////////VIDEO////////////////////////////////////////////////////////////////
 		 m_video_track_source_ptr =  (DesktopTrackSource::Create());
 		if (m_video_track_source_ptr)
@@ -446,13 +448,13 @@ namespace chen {
 
 			webrtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_proxy_ptr = peer_connection_factory_->CreateVideoTrack(m_video_track_source_ptr, kVideoLabel);
 			
-			 
+			NORMAL_EX_LOG("");
 
 			 webrtc::RtpTransceiverInit transceiver_init;
 			 
 
 			webrtc::RTCErrorOr<webrtc::scoped_refptr<webrtc::RtpTransceiverInterface>> result = peer_connection_->AddTransceiver(video_track_proxy_ptr, transceiver_init);
-
+			NORMAL_EX_LOG("");
 			if (!result_or_error.ok())
 			{
 				RTC_LOG(LS_ERROR) << "Failed to add video track to PeerConnection: "
