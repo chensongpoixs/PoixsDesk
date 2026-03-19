@@ -36,15 +36,19 @@
 #ifdef _MSC_VER
 #include <io.h>
 #include <direct.h>
+#include <shlobj.h>  // 用于获取用户目录
 #elif defined(__linux__) ||defined(__APPLE__)
 #include <unistd.h>
 #include <dirent.h>
 #include <arpa/inet.h>
+#include <sys/stat.h>
+#include <pwd.h>
 #else
 // 其他不支持的编译器需要自己实现这个方法
 #error unexpected c complier (msc/gcc), Need to implement this method for demangle
 #endif
 #include <vector>
+#include <filesystem>  // C++17 文件系统库
 #include "cutil.h"
 //#include <boost/filesystem.hpp>
 
@@ -180,6 +184,256 @@ namespace chen {
 
 	/**
 	*  @author chensong
+	*  @date 2026-03-18
+	*  @brief 获取服务日志路径（Get Service Log Path）
+	*  
+	*  获取适合 Windows 服务使用的日志目录路径。
+	*  优先使用 ProgramData 目录，适合 SYSTEM 账户运行的服务。
+	*  
+	*  @return 日志目录路径字符串
+	*  
+	*  @note Windows: C:\ProgramData\DeskService\Logs
+	*  @note Linux/Mac: /var/log/DeskService 或 /tmp/DeskService
+	*  @note 适合所有用户账户（包括 SYSTEM）访问
+	*/
+	static std::string get_service_log_path()
+	{
+		std::string log_path;
+		
+#ifdef _MSC_VER
+		// 优先使用 ProgramData 目录（适合服务，SYSTEM 账户可访问）
+		WCHAR program_data[MAX_PATH] = { 0 };
+		if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_COMMON_APPDATA, NULL, 0, program_data)))
+		{
+			char program_data_char[MAX_PATH] = { 0 };
+			WideCharToMultiByte(CP_UTF8, 0, program_data, -1, program_data_char, MAX_PATH, NULL, NULL);
+			log_path = std::string(program_data_char) + "\\DeskService\\Logs";
+		}
+		else
+		{
+			// 备用方案: 使用程序所在目录
+			char module_path[MAX_PATH] = { 0 };
+			if (GetModuleFileNameA(NULL, module_path, MAX_PATH) > 0)
+			{
+				std::string exe_path(module_path);
+				size_t pos = exe_path.find_last_of("\\/");
+				if (pos != std::string::npos)
+				{
+					log_path = exe_path.substr(0, pos) + "\\Logs";
+				}
+			}
+			
+			if (log_path.empty())
+			{
+				log_path = "C:\\Logs\\DeskService";
+			}
+		}
+#elif defined(__linux__) || defined(__APPLE__)
+		log_path = "/var/log/DeskService";
+		if (access(log_path.c_str(), W_OK) != 0)
+		{
+			log_path = "/tmp/DeskService";
+		}
+#endif
+		
+		return log_path;
+	}
+
+	/**
+	*  @author chensong
+	*  @date 2026-03-18
+	*  @brief 递归创建目录（Create Directory Recursively）
+	*  
+	*  递归创建多级目录，确保所有父目录都存在。
+	*  
+	*  @param path 要创建的目录路径
+	*  @return true 创建成功或目录已存在，false 创建失败
+	*/
+	static bool create_directory_recursive(const std::string& path)
+	{
+#ifdef _MSC_VER
+		std::string current_path;
+		for (size_t i = 0; i < path.length(); ++i)
+		{
+			current_path += path[i];
+			
+			if (path[i] == '\\' || path[i] == '/' || i == path.length() - 1)
+			{
+				// 跳过驱动器号 (C:)
+				if (current_path.length() <= 3 && current_path.find(':') != std::string::npos)
+				{
+					continue;
+				}
+				
+				// 检查目录是否存在
+				if (::_access(current_path.c_str(), 0) == -1)
+				{
+					// 创建目录
+					if (::_mkdir(current_path.c_str()) != 0)
+					{
+						DWORD error = GetLastError();
+						if (error != ERROR_ALREADY_EXISTS)
+						{
+							return false;
+						}
+					}
+				}
+			}
+		}
+		return true;
+#else
+		// Linux/Mac 实现
+		std::string current_path;
+		for (size_t i = 0; i < path.length(); ++i)
+		{
+			current_path += path[i];
+			
+			if (path[i] == '/' || i == path.length() - 1)
+			{
+				if (current_path.empty() || current_path == "/")
+				{
+					continue;
+				}
+				
+				if (::access(current_path.c_str(), F_OK) != 0)
+				{
+					if (::mkdir(current_path.c_str(), 0755) != 0)
+					{
+						if (errno != EEXIST)
+						{
+							return false;
+						}
+					}
+				}
+			}
+		}
+		return true;
+#endif
+	}
+
+	/**
+	*  @author chensong
+	*  @date 2026-03-18
+	*  @brief 检查目录是否可写（Check if Directory is Writable）
+	*  
+	*  通过创建临时文件来测试目录是否具有写入权限。
+	*  
+	*  @param path 要检查的目录路径
+	*  @return true 目录可写，false 目录不可写
+	*/
+	static bool is_directory_writable(const std::string& path)
+	{
+#ifdef _MSC_VER
+		std::string test_file = path + "\\.write_test";
+		HANDLE hFile = CreateFileA(
+			test_file.c_str(),
+			GENERIC_WRITE,
+			0,
+			NULL,
+			CREATE_ALWAYS,
+			FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE,
+			NULL
+		);
+		
+		if (hFile == INVALID_HANDLE_VALUE)
+		{
+			return false;
+		}
+		
+		CloseHandle(hFile);
+		return true;
+#else
+		return ::access(path.c_str(), W_OK) == 0;
+#endif
+	}
+
+	/**
+	*  @author chensong
+	*  @date 2026-03-18
+	*  @brief 记录到 Windows 事件查看器（Log to Windows Event Viewer）
+	*  
+	*  将消息记录到 Windows 事件日志，用于服务调试。
+	*  
+	*  @param message 要记录的消息
+	*  @param type 事件类型（EVENTLOG_ERROR_TYPE, EVENTLOG_INFORMATION_TYPE 等）
+	*/
+	static void log_to_event_viewer(const char* message, WORD type = EVENTLOG_ERROR_TYPE)
+	{
+#ifdef _MSC_VER
+		HANDLE hEventLog = RegisterEventSourceA(NULL, "DeskServiceCRTC");
+		if (hEventLog)
+		{
+			const char* strings[1] = { message };
+			ReportEventA(hEventLog, type, 0, 0, NULL, 1, 0, strings, NULL);
+			DeregisterEventSource(hEventLog);
+		}
+#endif
+	}
+
+	/**
+	*  @author chensong
+	*  @date 2026-03-18
+	*  @brief 获取用户目录下的DeskService日志路径（Get DeskService Log Path in User Directory）
+	*  
+	*  获取当前用户目录下的DeskService文件夹路径，用于存放日志文件。
+	*  
+	*  @return 日志目录路径字符串
+	*  
+	*  @note Windows: C:\Users\用户名\DeskService
+	*  @note Linux/Mac: /home/用户名/DeskService 或 ~/DeskService
+	*  @note 如果目录不存在，会自动创建
+	*  @deprecated 不适合 SYSTEM 账户，建议使用 get_service_log_path()
+	*/
+	static std::string get_user_log_path()
+	{
+		std::string log_path;
+		
+#ifdef _MSC_VER
+		// Windows: 获取用户目录
+		WCHAR user_profile[MAX_PATH] = { 0 };
+		if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_PROFILE, NULL, 0, user_profile)))
+		{
+			// 转换 WCHAR 到 char
+			char user_profile_char[MAX_PATH] = { 0 };
+			WideCharToMultiByte(CP_UTF8, 0, user_profile, -1, user_profile_char, MAX_PATH, NULL, NULL);
+			log_path = std::string(user_profile_char) + "\\.DeskService";
+		}
+		else
+		{
+			// 备用方案：使用当前目录
+			log_path = ".\\log";
+		}
+#elif defined(__linux__) || defined(__APPLE__)
+		// Linux/Mac: 获取用户主目录
+		const char* home_dir = getenv("HOME");
+		if (home_dir == nullptr)
+		{
+			// 备用方案：从 passwd 获取
+			struct passwd* pw = getpwuid(getuid());
+			if (pw != nullptr)
+			{
+				home_dir = pw->pw_dir;
+			}
+		}
+		
+		if (home_dir != nullptr)
+		{
+			log_path = std::string(home_dir) + "/DeskService";
+		}
+		else
+		{
+			// 备用方案：使用当前目录
+			log_path = "./log";
+		}
+#else
+		log_path = "./log";
+#endif
+		
+		return log_path;
+	}
+
+	/**
+	*  @author chensong
 	*  @date 2018-10-02
 	*  @brief 生成日志文件名（Generate Log File Name）
 	*  
@@ -232,7 +486,7 @@ namespace chen {
 			 
 			day_stamp += ETC_Day;
 		}
-		sprintf(p, "%s_%s%s", dateTime, name.c_str(), ext.c_str());
+		sprintf(p, "%s_%s%s", name.c_str(), dateTime,  ext.c_str());
 	}
 	 
 	/*casync_log::casync_log()
@@ -282,43 +536,104 @@ namespace chen {
 	*/
 	bool casync_log::init(ELogStorageType storagetype, const   std::string  & host, uint32 port, uint32 day)
 	{ 
-		//NORMAL_EX_LOG("host = %s, port = %d, show_screen = %d", host.c_str(), port, show_screen);
+		// 获取适合服务的日志路径（支持 SYSTEM 账户）
+		m_path = get_service_log_path();
+		
+		// 设置日志保留天数，默认30天
+		m_expired_log_day = (day > 0) ? day : 30;
 
+		std::string msg = "Log path: " + m_path;
+		log_to_event_viewer(msg.c_str(), EVENTLOG_INFORMATION_TYPE);
 
-#ifdef _MSC_VER
-		if (::_access(m_path.c_str(), 0) == -1)
+		// 递归创建目录并检查结果
+		if (!create_directory_recursive(m_path))
 		{
+			msg = "Failed to create log directory: " + m_path;
+			log_to_event_viewer(msg.c_str(), EVENTLOG_ERROR_TYPE);
+			std::cerr << msg << std::endl;
+			return false;
+		}
 
-			::_mkdir(m_path.c_str());
-		}
-#elif defined(__GNUC__) ||defined(__APPLE__)
-		if (::access(m_path.c_str(), 0) == -1)
+		// 验证目录可写
+		if (!is_directory_writable(m_path))
 		{
-			::mkdir(m_path.c_str(), 0777);
+			msg = "Log directory is not writable: " + m_path;
+			log_to_event_viewer(msg.c_str(), EVENTLOG_ERROR_TYPE);
+			std::cerr << msg << std::endl;
+			return false;
 		}
-#else
-		// 其他不支持的编译器需要自己实现这个方法
-#error unexpected c complier (msc/gcc), Need to implement this method for demangle
-		return false;
-#endif
+
 		if (storagetype & ELogStorageFile)
 		{
 			char log_name[1024] = {0};
-			gen_log_file_name(log_name, m_path + "/", "rtc_native", ".log", ELogName_AutoDate, m_date_time);
+#ifdef _MSC_VER
+			gen_log_file_name(log_name, m_path + "\\", "desk_service_rtc", ".log", ELogName_AutoDate, m_date_time);
+#else
+			gen_log_file_name(log_name, m_path + "/", "desk_service_rtc", ".log", ELogName_AutoDate, m_date_time);
+#endif
 			m_fd.open(log_name, std::ios::out | std::ios::trunc);
 			if (!m_fd.is_open())
 			{
-				std::cout << "not open log file dest url = " << log_name << std::endl;
+				msg = "Failed to open log file: " + std::string(log_name);
+				log_to_event_viewer(msg.c_str(), EVENTLOG_ERROR_TYPE);
+				std::cerr << msg << std::endl;
 				return false;
 			}
+
+			msg = "Log file created: " + std::string(log_name);
+			log_to_event_viewer(msg.c_str(), EVENTLOG_INFORMATION_TYPE);
 		}
 		m_host = host;
 		m_port = port;
 		m_storage_type = storagetype;
-		m_expired_log_day = day > 0 ? day : 1;
-		std::thread td(&casync_log::_work_pthread, this);
-		m_thread.swap(td);
-		//std::move(m_thread, td);
+		
+		// 启动工作线程（添加异常处理）
+		try
+		{
+			std::thread td(&casync_log::_work_pthread, this);
+			m_thread.swap(td);
+			
+			if (!m_thread.joinable())
+			{
+				log_to_event_viewer("Log thread is not joinable", EVENTLOG_ERROR_TYPE);
+				std::cerr << "Log thread is not joinable" << std::endl;
+				
+				if (m_fd.is_open())
+				{
+					m_fd.close();
+				}
+				return false;
+			}
+			
+			log_to_event_viewer("Log system initialized successfully", EVENTLOG_INFORMATION_TYPE);
+		}
+		catch (const std::system_error& e)
+		{
+			msg = "Failed to create log thread: " + std::string(e.what());
+			log_to_event_viewer(msg.c_str(), EVENTLOG_ERROR_TYPE);
+			std::cerr << msg << std::endl;
+			
+			if (m_fd.is_open())
+			{
+				m_fd.close();
+			}
+			
+			return false;
+		}
+		catch (const std::exception& e)
+		{
+			msg = "Unexpected exception: " + std::string(e.what());
+			log_to_event_viewer(msg.c_str(), EVENTLOG_ERROR_TYPE);
+			std::cerr << msg << std::endl;
+			
+			if (m_fd.is_open())
+			{
+				m_fd.close();
+			}
+			
+			return false;
+		}
+		
 		return true;
 	}
 	
@@ -609,7 +924,11 @@ namespace chen {
 			}
 
 			char log_name[1024] = {0};
-			gen_log_file_name(log_name, m_path + "/", "rtc_native", ".log", ELogName_AutoDate, m_date_time);
+#ifdef _MSC_VER
+			gen_log_file_name(log_name, m_path + "\\", "desk_service_rtc", ".log", ELogName_AutoDate, m_date_time);
+#else
+			gen_log_file_name(log_name, m_path + "/", "desk_service_rtc", ".log", ELogName_AutoDate, m_date_time);
+#endif
 			m_fd.open(log_name, std::ios::out | std::ios::trunc);
 			if (!m_fd.is_open())
 			{
@@ -623,42 +942,65 @@ namespace chen {
 	
 	/**
 	*  @author chensong
-	*  @date 2018-10-02
+	*  @date 2026-03-18
 	*  @brief 检查并删除过期日志文件实现（Check and Delete Expired Log Files Implementation）
 	*  
 	*  检查日志目录中的过期日志文件并删除。
 	*  
-	*  @note 根据m_expired_log_day设置删除超过保留天数的日志文件
-	*  @note 当前实现为空（已注释），需要根据实际需求实现
-	*  @note 原实现使用boost::filesystem库，需要依赖外部库
-	*  @note 可以替换为C++17的std::filesystem或自定义实现
+	*  @note 根据m_expired_log_day设置删除超过保留天数的日志文件（默认30天）
+	*  @note 使用C++17的std::filesystem库遍历目录
+	*  @note 只删除.log扩展名的文件
+	*  @note 根据文件最后修改时间判断是否过期
 	*/
 	void casync_log::_check_expired_log_file()
 	{
-		std::vector<std::string>   filenames;
-		//if (path_util::get_path_all_filenames(m_path, filenames) > 0)
-		//{
-
-		//	std::time_t expired_date_time = m_date_time - (ETC_Day * (m_expired_log_day > 0 ? m_expired_log_day : 1));
-		//	for (const std::string& fname : filenames)
-		//	{
-		//		if (boost::filesystem::is_regular_file(fname))
-		//		{
-		//			std::time_t file_time = boost::filesystem::last_write_time(fname);
-		//			if (file_time < expired_date_time)
-		//			{
-		//				// delete file !!!
-		//				if (!boost::filesystem::remove(boost::filesystem::path(fname)))
-		//				{
-		//					WARNING_EX_LOG("delete file = %s failed !!!",  fname.c_str());
-		//					std::cerr << "delete file = " << fname << " !!! " << std::endl;
-		//				}
-		//			}
-		//		}
-		//	}
-		//}
-	
-	
+		try
+		{
+			namespace fs = std::filesystem;
+			
+			// 计算过期时间戳（当前时间 - 保留天数）
+			std::time_t expired_time = m_date_time - (ETC_Day * m_expired_log_day);
+			
+			// 遍历日志目录
+			if (fs::exists(m_path) && fs::is_directory(m_path))
+			{
+				for (const auto& entry : fs::directory_iterator(m_path))
+				{
+					if (entry.is_regular_file())
+					{
+						// 只处理.log文件
+						if (entry.path().extension() == ".log")
+						{
+							// 获取文件最后修改时间
+							auto file_time = fs::last_write_time(entry);
+							auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+								file_time - fs::file_time_type::clock::now() + std::chrono::system_clock::now()
+							);
+							std::time_t file_time_t = std::chrono::system_clock::to_time_t(sctp);
+							
+							// 如果文件过期，删除它
+							if (file_time_t < expired_time)
+							{
+								try
+								{
+									fs::remove(entry.path());
+									std::cout << "Deleted expired log file: " << entry.path().string() << std::endl;
+								}
+								catch (const std::exception& e)
+								{
+									std::cerr << "Failed to delete file " << entry.path().string() 
+											  << ": " << e.what() << std::endl;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		catch (const std::exception& e)
+		{
+			std::cerr << "Error checking expired log files: " << e.what() << std::endl;
+		}
 	}
 	
 	/**
