@@ -65,6 +65,7 @@ namespace chen {
 	}
 	bool crtc_client::init(uint32 gpu_index)
 	{
+#if 1
 		printf("Log init ...\n");
 		if (!LOG::init(ELogStorageScreenFile))
 		{
@@ -74,26 +75,33 @@ namespace chen {
 		//	show_work_dir();
 
 		SYSTEM_LOG("Log init ...\n");
-		  
+#endif 	  
 		 
-		 
-		if (!s_input_device.init())
+		s_input_device.init();
+		/*if (!s_input_device.init())
 		{
 			ERROR_EX_LOG("init input_device mouble !!!  ");
 			return false;
-		}
+		}*/
 		SYSTEM_LOG("input device  init ok !!!");
 
 
 
 		return true;
 	}
-	void crtc_client::Loop(const char* rtc_ip, uint16_t rtc_port, const char* rtc_app, const char* rtc_streamname/*const char* rtc_url*//*const std::string& rtc_ip, uint16_t rtc_port, const std::string& roomName, const std::string& clientName
-		, uint32_t reconnect_waittime*/)
+
+
+	void  crtc_client::set_device_info_callback(device_info_callback callback)
 	{
-#if 1
-	//	std::string ws_url = "ws://" + rtc_ip + ":" + std::to_string(rtc_port) + "/?roomId=" + roomName + "&peerId=" + clientName;//ws://127.0.0.1:8888/?roomId=chensong&peerId=xiqhlyrn", "http://127.0.0.1:8888")
-		//std::string origin = "http://" + mediasoupIp + ":" + std::to_string(port);
+		m_device_info_callback = callback;
+	}
+
+	void  crtc_client::set_rtc_status_callback(rtc_status_callback  callback)
+	{
+		m_rtc_status_callback = callback;
+	}
+	void crtc_client::Loop(const char* rtc_ip, uint16_t rtc_port, const char* token_device)
+	{
 		std::list<std::string> msgs;
 		time_t cur_time = ::time(NULL);
 		//NORMAL_EX_LOG("ws_url = %s", ws_url.c_str());
@@ -104,16 +112,17 @@ namespace chen {
 		std::chrono::steady_clock::duration dur;
 		std::chrono::milliseconds ms;
 		uint32_t elapse = 0;
-#endif //
+
 
 		rtc_ip_ = rtc_ip;
 		rtc_port_ = rtc_port;
-		rtc_app_ = rtc_app;
-		rtc_stream_name_ = rtc_streamname;
+		rtc_app_ = "live";
+		//rtc_stream_name_ = rtc_streamname;
+		token_device_ = token_device;
 		//rtc_url_ = rtc_url;
 		//rtc_url_ = "webrtc:://127.0.0.1/live/test2222";
-		printf("rtc_ip_=%s, rtc_port = %u, rtc_app = %s, rtc_stream_name =%s\n", rtc_ip_.c_str(), rtc_port_, rtc_app_.c_str(), rtc_stream_name_.c_str());
-		while (!m_stoped)
+		//printf("rtc_ip_=%s, rtc_port = %u, rtc_app = %s, rtc_stream_name =%s\n", rtc_ip_.c_str(), rtc_port_, rtc_app_.c_str(), rtc_stream_name_.c_str());
+		//while (!m_stoped)
 		{
 			pre_time = std::chrono::steady_clock::now();
 			switch (m_status)
@@ -123,10 +132,11 @@ namespace chen {
 			{  // websocket connect 
 				// 1. connect suucer status -> 1
 				//g_websocket_mgr.destroy();
-				 
+
 				m_status = ERtc_WebSocket;
 				m_rtc_publisher = new webrtc::RefCountedObject<chen::crtc_publisher>(this);
 				m_rtc_publisher->create_offer();
+				m_rtc_status_callback(ECrtcConnecting);
 				m_websocket_timer = 0;
 				// 1.1 获取服务器的处理能力
 				// 2. connect failed wait 5s..
@@ -197,7 +207,7 @@ namespace chen {
 			}
 			break;
 			}
-			if (!m_stoped)
+			/*if (!m_stoped)
 			{
 				cur_time_ms = std::chrono::steady_clock::now();
 				dur = cur_time_ms - pre_time;
@@ -208,7 +218,136 @@ namespace chen {
 					std::this_thread::sleep_for(std::chrono::milliseconds(TICK_TIME - elapse));
 				}
 
+			}*/
+
+
+		}
+		NORMAL_EX_LOG("rtc Loop exit !!!");
+
+
+	}
+	void crtc_client::Loop(const char* rtc_ip, uint16_t rtc_port, const char* rtc_app, const char* rtc_streamname/*const char* rtc_url*//*const std::string& rtc_ip, uint16_t rtc_port, const std::string& roomName, const std::string& clientName
+		, uint32_t reconnect_waittime*/)
+	{
+#if 1
+	//	std::string ws_url = "ws://" + rtc_ip + ":" + std::to_string(rtc_port) + "/?roomId=" + roomName + "&peerId=" + clientName;//ws://127.0.0.1:8888/?roomId=chensong&peerId=xiqhlyrn", "http://127.0.0.1:8888")
+		//std::string origin = "http://" + mediasoupIp + ":" + std::to_string(port);
+		std::list<std::string> msgs;
+		time_t cur_time = ::time(NULL);
+		//NORMAL_EX_LOG("ws_url = %s", ws_url.c_str());
+	//	m_room_name = roomName;
+	//	m_user_name = clientName;
+		std::chrono::steady_clock::time_point cur_time_ms;
+		std::chrono::steady_clock::time_point pre_time = std::chrono::steady_clock::now();
+		std::chrono::steady_clock::duration dur;
+		std::chrono::milliseconds ms;
+		uint32_t elapse = 0;
+#endif //
+
+		rtc_ip_ = rtc_ip;
+		rtc_port_ = rtc_port;
+		rtc_app_ = rtc_app;
+		rtc_stream_name_ = rtc_streamname;
+		//rtc_url_ = rtc_url;
+		//rtc_url_ = "webrtc:://127.0.0.1/live/test2222";
+		//printf("rtc_ip_=%s, rtc_port = %u, rtc_app = %s, rtc_stream_name =%s\n", rtc_ip_.c_str(), rtc_port_, rtc_app_.c_str(), rtc_stream_name_.c_str());
+		//while (!m_stoped)
+		{
+			pre_time = std::chrono::steady_clock::now();
+			switch (m_status)
+			{
+			case ERtc_WebSocket_Init: // None
+			case ERtc_None:
+			{  // websocket connect 
+				// 1. connect suucer status -> 1
+				//g_websocket_mgr.destroy();
+				 
+				m_status = ERtc_WebSocket;
+				m_rtc_publisher = new webrtc::RefCountedObject<chen::crtc_publisher>(this);
+				m_rtc_publisher->create_offer();
+				m_rtc_status_callback(ECrtcConnecting);
+				m_websocket_timer = 0;
+				// 1.1 获取服务器的处理能力
+				// 2. connect failed wait 5s..
+				break;
 			}
+			case ERtc_WebSocket: // wait server msg 
+			{
+
+				//m_websocket_mgr.presssmsg(msgs);
+
+#if 0
+				if (!msgs.empty() && m_websocket_mgr.get_status() == CWEBSOCKET_MESSAGE)
+				{
+					_presssmsg(msgs);
+				}
+
+				if (m_websocket_mgr.get_status() != CWEBSOCKET_MESSAGE)
+				{
+					m_status = ERtc_Reset;
+					msgs.clear();
+				}
+#endif //
+				break;
+			}
+			case ERtc_WebSocket_Close:
+			{
+				// 1.  send_transport destroy --> 
+				// 2. recv_transport destroy --> 
+				// 3. status -> reconnect wait --> 
+				m_status = ERtc_WebSocket_Wait;
+				break;
+			}
+			case ERtc_WebSocket_Wait:
+			{
+				// 10 sleep 
+				// TODO@chensong 20220208 ---> 增加时间
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+				m_status = ERtc_WebSocket_Init;
+				break;
+			}
+			case ERtc_Reset:
+			case ERtc_Destory:
+			{
+
+				//m_websocket_mgr.destroy();
+
+				cur_time = ::time(NULL) + 5;
+				NORMAL_EX_LOG("reconnect  wait [%u s]  ...", 5);
+				m_status = ERtc_Wait;
+				break;
+			}
+			case  ERtc_Wait:
+			{
+				if (cur_time < ::time(NULL))
+				{
+					m_status = ERtc_WebSocket_Init;
+				}
+				break;
+			}
+			case ERtc_Exit:
+			{
+
+				break;
+			}
+			default:
+			{
+				ERROR_EX_LOG("client not find status = %u", m_status);
+			}
+			break;
+			}
+			/*if (!m_stoped)
+			{
+				cur_time_ms = std::chrono::steady_clock::now();
+				dur = cur_time_ms - pre_time;
+				ms = std::chrono::duration_cast<std::chrono::milliseconds>(dur);
+				elapse = static_cast<uint32_t>(ms.count());
+				if (elapse < TICK_TIME)
+				{
+					std::this_thread::sleep_for(std::chrono::milliseconds(TICK_TIME - elapse));
+				}
+
+			}*/
 
 
 		}
@@ -258,9 +397,10 @@ namespace chen {
 #if 1
 		rtc_url_ = "webrtc://" + rtc_ip_ + ":" + std::to_string(rtc_port_) + "/" + rtc_app_ + "/" + rtc_stream_name_;
 		nlohmann::json data = {
-			{"type", "offer"},
+			{"token_device", token_device_},
+			//{"type", "offer"},
 			{ "sdp", sdp},
-			{"streamurl", rtc_url_},
+			//{"streamurl", rtc_url_},
 			{"clientid",  "chensong"}
 		};
 		std::string http_url = "http://" + rtc_ip_ + ":" + std::to_string(rtc_port_);
@@ -331,6 +471,8 @@ namespace chen {
 	void crtc_client::connect_rtc_failed()
 	{
 		m_status = ERtc_Reset;
+		m_rtc_status_callback(ECrtcConnectFailed);
+		WARNING_EX_LOG("rtc failed !!!");
 	}
 
 	void crtc_client::_presssmsg(std::list<std::string>& msgs)

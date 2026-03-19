@@ -81,6 +81,7 @@ include_directories(
 add_subdirectory(PoixsDesk)
 add_subdirectory(libdevice)
 add_subdirectory(libcommon)
+add_subdirectory(libcrtc)
 add_subdirectory(Win)
 add_subdirectory(Tools)
 

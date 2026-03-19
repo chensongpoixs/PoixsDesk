@@ -567,9 +567,9 @@ namespace chen {
 		{
 			char log_name[1024] = {0};
 #ifdef _MSC_VER
-			gen_log_file_name(log_name, m_path + "\\", "desk_service_rtc", ".log", ELogName_AutoDate, m_date_time);
+			gen_log_file_name(log_name, m_path + "\\", "libcrtc", ".log", ELogName_AutoDate, m_date_time);
 #else
-			gen_log_file_name(log_name, m_path + "/", "desk_service_rtc", ".log", ELogName_AutoDate, m_date_time);
+			gen_log_file_name(log_name, m_path + "/", "libcrtc", ".log", ELogName_AutoDate, m_date_time);
 #endif
 			m_fd.open(log_name, std::ios::out | std::ios::trunc);
 			if (!m_fd.is_open())
@@ -925,9 +925,9 @@ namespace chen {
 
 			char log_name[1024] = {0};
 #ifdef _MSC_VER
-			gen_log_file_name(log_name, m_path + "\\", "desk_service_rtc", ".log", ELogName_AutoDate, m_date_time);
+			gen_log_file_name(log_name, m_path + "\\", "libcrtc", ".log", ELogName_AutoDate, m_date_time);
 #else
-			gen_log_file_name(log_name, m_path + "/", "desk_service_rtc", ".log", ELogName_AutoDate, m_date_time);
+			gen_log_file_name(log_name, m_path + "/", "libcrtc", ".log", ELogName_AutoDate, m_date_time);
 #endif
 			m_fd.open(log_name, std::ios::out | std::ios::trunc);
 			if (!m_fd.is_open())

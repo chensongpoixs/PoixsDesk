@@ -57,6 +57,7 @@
 #include <string>
 #include "crtc_publisher.h" 
 #include "csingleton.h"
+#include "libcrtc.h"
 namespace chen {
 
 	/**
@@ -221,7 +222,10 @@ namespace chen {
 			, m_rtc_publisher()
 			, m_room_name("")
 			, m_user_name("")
+			, token_device_("")
 			, m_websocket_timer(0)
+			, m_device_info_callback(nullptr)
+			, m_rtc_status_callback(nullptr)
 		{
 		}
 		
@@ -277,6 +281,13 @@ namespace chen {
 		*  @endcode
 		*/
 		bool init(uint32 gpu_index);
+
+
+
+
+		void  set_device_info_callback(device_info_callback callback);
+
+		void  set_rtc_status_callback(rtc_status_callback  callback);
 		
 		/**
 		*  @author chensong
@@ -338,6 +349,8 @@ namespace chen {
 		*  @endcode
 		*/
 		void Loop(const char* rtc_ip, uint16_t rtc_port, const char * app, const char * streamname);
+
+		void Loop(const char* rtc_ip, uint16_t rtc_port, const char * token_device);
 		//void Loop(const char * rtc_url);
 		
 		/**
@@ -588,6 +601,11 @@ namespace chen {
 		uint16_t  rtc_port_;
 		std::string rtc_app_;
 		std::string rtc_stream_name_;
+
+		std::string token_device_;
+
+		device_info_callback      m_device_info_callback;
+		rtc_status_callback       m_rtc_status_callback;
 	};
 
 #define  s_rtc_client chen::csingleton<chen::crtc_client>::get_instance()

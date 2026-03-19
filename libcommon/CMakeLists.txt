@@ -17,6 +17,8 @@ MESSAGE(STATUS  "####################################")
 
 include_directories(
 	.
+	../libcrtc 
+
 	 
 )
 
