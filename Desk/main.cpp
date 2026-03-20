@@ -22,6 +22,7 @@ purpose:        Desk 主程序入口（在用户会话中运行）
 #include <iostream>
 #include <csignal>
 #include <atomic>
+#include <ctime>
 #include "DeskLogic.h"
 #include "clog.h"
 
@@ -58,10 +59,53 @@ BOOL WINAPI ConsoleCtrlHandler(DWORD dwCtrlType)
 
 int main(int argc, char* argv[])
 {
-    // 初始化日志系统
-    if (!clog::init(chen::ELogStorageScreenFile))
+    // ========== 启动诊断日志 ==========
+    // 立即写入启动标记，用于诊断
+    FILE* startup_log = fopen("C:\\Windows\\Temp\\desk_startup01.log", "wb+");
+    if (startup_log)
     {
-        std::cerr << "Failed to initialize log system" << std::endl;
+        time_t now = time(NULL);
+        fprintf(startup_log, "\n========================================\n");
+        fprintf(startup_log, "[%s] Desk.exe starting...\n", ctime(&now));
+        fprintf(startup_log, "argc: %d\n", argc);
+        for (int i = 0; i < argc; i++)
+        {
+            fprintf(startup_log, "argv[%d]: %s\n", i, argv[i]);
+        }
+        
+        // 获取当前进程信息
+        DWORD pid = GetCurrentProcessId();
+        DWORD session_id = 0;
+        ProcessIdToSessionId(pid, &session_id);
+        fprintf(startup_log, "Process ID: %lu\n", pid);
+        fprintf(startup_log, "Session ID: %lu\n", session_id);
+        
+        fflush(startup_log);
+        fclose(startup_log);
+    }
+    
+    // ========== 初始化日志系统 ==========
+    // 使用仅文件日志（不输出到屏幕，因为服务启动的进程没有控制台）
+    if (!clog::init(chen::ELogStorageFile))
+    {
+        // 日志初始化失败，写入事件日志
+        FILE* error_log = fopen("C:\\Windows\\Temp\\desk_startup02.log", "wb+");
+        if (error_log)
+        {
+            fprintf(error_log, "[ERROR] Failed to initialize clog system\n");
+            fflush(error_log);
+            fclose(error_log);
+        }
+        
+        // 写入 Windows 事件日志
+        HANDLE hEventLog = RegisterEventSourceA(NULL, "Desk");
+        if (hEventLog)
+        {
+            const char* msg = "Desk.exe: Failed to initialize log system";
+            ReportEventA(hEventLog, EVENTLOG_ERROR_TYPE, 0, 0, NULL, 1, 0, &msg, NULL);
+            DeregisterEventSource(hEventLog);
+        }
+        
         return 1;
     }
     
@@ -94,9 +138,26 @@ int main(int argc, char* argv[])
     DeskLogic desk_logic;
     
     NORMAL_EX_LOG("Initializing DeskLogic...");
-    if (!desk_logic.init())
+    
+    // 添加异常捕获
+    try
     {
-        ERROR_EX_LOG("Failed to initialize DeskLogic");
+        if (!desk_logic.init())
+        {
+            ERROR_EX_LOG("Failed to initialize DeskLogic");
+            clog::destroy();
+            return 1;
+        }
+    }
+    catch (const std::exception& e)
+    {
+        ERROR_EX_LOG("Exception during DeskLogic initialization: %s", e.what());
+        clog::destroy();
+        return 1;
+    }
+    catch (...)
+    {
+        ERROR_EX_LOG("Unknown exception during DeskLogic initialization");
         clog::destroy();
         return 1;
     }
