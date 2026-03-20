@@ -79,6 +79,7 @@ include_directories(
 )
  
 add_subdirectory(PoixsDesk)
+add_subdirectory(Desk)
 add_subdirectory(libdevice)
 add_subdirectory(libcommon)
 add_subdirectory(libcrtc)
