@@ -326,15 +326,31 @@
  
 namespace chen {
 
+#define  TEST_RTC_IP_PORT (1)
 
+#define  OFFICIAL_SERVER  (1)
 
-
+#if 0
     static const char* kIp = "192.168.9.139";
     static const uint16_t kPort = 9010;
 
 
 static const char* kHttpUrl = "http://192.168.9.139:9010";
+#elif OFFICIAL_SERVER
+    
 
+    static const char* kIp = "112.80.31.194";
+    static const uint16_t kPort = 20708;
+
+
+    static const char* kHttpUrl = "http://112.80.31.194:20913";
+#else 
+    static const char* kIp = "112.80.31.194";
+    static const uint16_t kPort = 20913;
+
+
+    static const char* kHttpUrl = "http://112.80.31.194:20913";
+#endif 
 
 
 
@@ -860,16 +876,7 @@ void DeskLogic::_work_thread()
     
     try
     {
-        // 等待网络可用（最多60秒）
-        if (_wait_for_network(60))
-        {
-            // 尝试注册设备
-            _register_device();
-        }
-        else
-        {
-            ERROR_EX_LOG("Network not available, device registration skipped");
-        }
+        
         
         // 心跳循环
         while (!m_stoped)
@@ -883,6 +890,16 @@ void DeskLogic::_work_thread()
                 {
                     // push -->
                     g_g_pushing = true;
+                    // 等待网络可用（最多60秒）
+                    if (_wait_for_network(60))
+                    {
+                        // 尝试注册设备
+                        _register_device();
+                    }
+                    else
+                    {
+                        ERROR_EX_LOG("Network not available, device registration skipped");
+                    }
                     libcrtc_init(kIp, kPort, m_token_device.c_str());
                 }
                 std::this_thread::sleep_for(std::chrono::seconds(3));
