@@ -51,7 +51,7 @@ include_directories(
 
 link_directories( 
 .
-D:/Work/webrtc_google/src/out/vs2022_debug_chensong
+D:/Work/webrtc_google/src/out/vs2022_release_chensong
 )
 
 

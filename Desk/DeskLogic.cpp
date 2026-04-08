@@ -330,7 +330,7 @@ namespace chen {
 
 #define  OFFICIAL_SERVER  (1)
 
-#if 0
+#if 1
     static const char* kIp = "192.168.9.139";
     static const uint16_t kPort = 9010;
 
