@@ -266,7 +266,8 @@ namespace chen {
 		std::string http_url = "http://" + rtc_ip_ + ":" + std::to_string(rtc_port_);
 		httplib::Client cli(http_url);
  
-		auto res = cli.Post("/api/rtc/push", data.dump(), "application/json");
+		//auto res = cli.Post("/api/rtc/push", data.dump(), "application/json");
+		auto res = cli.Post("/rtc/push", data.dump(), "application/json");
 		if (res && res->status == 200) {
 			std::cout << "Response: " << res->body << std::endl;
 			NORMAL_EX_LOG("%s", res->body.c_str());

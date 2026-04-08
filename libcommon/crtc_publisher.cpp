@@ -91,7 +91,7 @@ namespace chen {
 				}
 #endif
 				std::unique_ptr<chen::DesktopCapture> capturer(
-					chen::DesktopCapture::Create(60, 0));
+					chen::DesktopCapture::Create(25, 0));
 				if (capturer) {
 					capturer->StartCapture();
 					return webrtc::make_ref_counted<DesktopTrackSource>(std::move(capturer));
@@ -194,7 +194,7 @@ namespace chen {
 		}
 		else
 		{
-			stats_endpoint_url_ = "http://192.168.9.172:8089/api/stats";
+			stats_endpoint_url_ = "http://192.168.9.139:8089/api/stats";
 		}
 		stats_endpoint_ready_ = ParseStatsEndpoint(stats_endpoint_url_, stats_endpoint_);
 		if (!stats_endpoint_ready_)
@@ -464,7 +464,7 @@ namespace chen {
 			RTC_LOG(LS_ERROR) << "OpenVideoCaptureDevice failed";
 		}
 
-		//StartStatsLogger();
+		StartStatsLogger();
 	}
 
 	void crtc_publisher::StartStatsLogger()
