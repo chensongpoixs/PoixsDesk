@@ -68,6 +68,8 @@ namespace chen {
 
 
 		void _heartbeat_device();
+
+		std::string _update_password(const std::string & password);
 	private:
 
 
@@ -83,6 +85,7 @@ namespace chen {
 
 		void _work_thread();
 
+		void _update_password_thread();
 	private:
 
 
@@ -90,20 +93,22 @@ namespace chen {
 		std::atomic_bool    m_stoped;
 
 		std::thread         m_thread;
+		std::thread         m_update_password_thread;
 		
 
 
 
-		std::string        m_device_id;
-		std::string        m_device_code;
-		std::string        m_password;
+		std::mutex				m_lock;
+		 std::string         m_device_id;
+		  std::string         m_device_code;
+		  std::string        m_password;
 
-		std::string        m_token_device;
+		  std::string       m_token_device;
 
 		//std::atomic_bool   m_pushing;
 
 
-
+		
 
 	};
 	//extern DeskLogic g_desk_logic;

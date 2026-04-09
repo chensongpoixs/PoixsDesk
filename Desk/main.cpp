@@ -25,7 +25,7 @@ purpose:        Desk 主程序入口（在用户会话中运行）
 #include <ctime>
 #include "DeskLogic.h"
 #include "clog.h"
-
+#include "pipe_client.h"
 using namespace chen;
 
 // 全局停止标志
@@ -57,8 +57,73 @@ BOOL WINAPI ConsoleCtrlHandler(DWORD dwCtrlType)
     }
 }
 
+
+static bool CheckPassword(const std::string& p)
+{
+    if (p.size() > 5 && p.size() < 10)
+    {
+        return true;
+    }
+    return false;
+}
+
+
+static void UpdatePassword(int argc, char* argv[])
+{
+    for (size_t i = 0; i < argc; ++i)
+    {
+        printf("%lu， %s\n", i, argv[i]);
+    }
+    if (argv[1] == "-setpasswd")
+    {
+        std::string password = argv[2];
+        if (!CheckPassword(password))
+        {
+            std::cout << "check password : " << password <<", format error !!!" << std::endl;
+            return;
+       }
+        chen:: NamedPipeClient client("DeskServicePipe");
+            
+        if (client.Connect()) {
+            std::string response = client.SendRequest(password);
+            std::cout << "response: " << response << std::endl;
+        }
+        else
+        {
+            std::cout << "connect server failed !!!" << std::endl;
+        }
+        //    
+    }
+    else
+    {
+        printf("Unknown type !!!");
+    }
+
+
+
+
+}
+
+
+
+
 int main(int argc, char* argv[])
 {
+    printf("argc = %u\n", argc);
+
+
+    if (argc > 2)
+    {
+        UpdatePassword(argc, argv);
+        return 0;
+    }
+
+
+
+
+
+
+
     // ========== 启动诊断日志 ==========
     // 立即写入启动标记，用于诊断
     FILE* startup_log = fopen("C:\\Windows\\Temp\\desk_startup01.log", "wb+");

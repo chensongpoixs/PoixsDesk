@@ -53,6 +53,10 @@ add_executable(Desk
     # JSON 和 HTTP
     json.hpp
     httplib.h
+    pipe_server.h
+    pipe_server.cpp 
+    pipe_client.h
+    pipe_client.cpp 
 )
 
 # 链接库

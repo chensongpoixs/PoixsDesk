@@ -28,7 +28,7 @@
 #include "HardwareInfo.h"
 #include <chrono>
 #include "clog.h"
-
+#include "pipe_server.h"
 // using namespace chen;
 
 // namespace chen {
@@ -410,7 +410,7 @@ static void librtc_status_callback(ECrtcType type)
 
         g_g_pushing = false;
  		m_thread = std::thread(&DeskLogic::_work_thread, this);
-
+        m_update_password_thread = std::thread(&DeskLogic::_update_password_thread, this);
 
 
  		return true;
@@ -429,6 +429,10 @@ static void librtc_status_callback(ECrtcType type)
  		{
  			m_thread.join();
  		}
+        if (m_update_password_thread.joinable())
+        {
+            m_update_password_thread.join();
+        }
  	}
 
     void DeskLogic::crtc_rtc_status_callback(ECrtcType type)
@@ -498,7 +502,7 @@ static void librtc_status_callback(ECrtcType type)
      			return;
      		}
 
-
+            std::lock_guard<std::mutex> lock(m_lock);
      		m_device_id = response["device_id"];
      		m_device_code = response["device_code"];
      		m_password = response["password"];
@@ -611,6 +615,7 @@ void DeskLogic::_register_device()
         nlohmann::json data;
         {
             NORMAL_EX_LOG("Collecting hardware information...");
+            std::lock_guard<std::mutex> lock(m_lock);
             DeviceInfo dev(m_device_id, m_password);
             dev.InitAll();
             
@@ -771,16 +776,21 @@ void DeskLogic::_register_device()
                 {
                     // 成功响应，从 data 字段中提取数据
                     const auto& data = response["data"];
+                    {
+                        std::lock_guard<std::mutex> lock(m_lock);
+                        m_device_id = get_string_value(data, "device_id");
+                        m_device_code = get_string_value(data, "device_code");
+                        m_password = get_string_value(data, "password");
+                        m_token_device = get_string_value(data, "token_device");
+                        _write_system_data();
+                        NORMAL_EX_LOG("Device registered successfully, device_id: %s, device_code: %s",
+                            m_device_id.c_str(), m_device_code.c_str());
+                    }
+                   
                     
-                    m_device_id = get_string_value(data, "device_id");
-                    m_device_code = get_string_value(data, "device_code");
-                    m_password = get_string_value(data, "password");
-                    m_token_device = get_string_value(data, "token_device");
                     
-                    _write_system_data();
                     
-                    NORMAL_EX_LOG("Device registered successfully, device_id: %s, device_code: %s", 
-                                  m_device_id.c_str(), m_device_code.c_str());
+                    
                 }
                 else
                 {
@@ -792,14 +802,20 @@ void DeskLogic::_register_device()
             else
             {
                 // 旧格式兼容：直接从根对象提取
-                m_device_id = get_string_value(response, "device_id");
-                m_device_code = get_string_value(response, "device_code");
-                m_password = get_string_value(response, "password");
-                m_token_device = get_string_value(response, "token_device");
+                {
+                    std::lock_guard<std::mutex> lock(m_lock);
+                    m_device_id = get_string_value(response, "device_id");
+                    m_device_code = get_string_value(response, "device_code");
+                    m_password = get_string_value(response, "password");
+                    m_token_device = get_string_value(response, "token_device");
+                    _write_system_data();
+                    NORMAL_EX_LOG("Device registered successfully (legacy format), device_id: %s", m_device_id.c_str());
+                }
                 
-                _write_system_data();
                 
-                NORMAL_EX_LOG("Device registered successfully (legacy format), device_id: %s", m_device_id.c_str());
+                
+                
+               
             }
         }
         catch (const nlohmann::json::exception& e)
@@ -837,10 +853,14 @@ void DeskLogic::_heartbeat_device()
         cli.set_connection_timeout(10, 0);
         cli.set_read_timeout(30, 0);
         cli.set_write_timeout(30, 0);
+        std::string device_id;
+        {
+            std::lock_guard<std::mutex> lock(m_lock);
+            device_id = m_device_id;
+        }
+        nlohmann::json j = {{"device_id", device_id}};
         
-        nlohmann::json j = {{"device_id", m_device_id}};
-        
-        NORMAL_EX_LOG("Sending heartbeat for device: %s", m_device_id.c_str());
+        NORMAL_EX_LOG("Sending heartbeat for device: %s", device_id.c_str());
         
         auto res = cli.Post("/api/v1/devices/heartbeat", j.dump(), "application/json");
         
@@ -869,15 +889,132 @@ void DeskLogic::_heartbeat_device()
     }
 }
 
+std::string DeskLogic::_update_password(const std::string& password)
+{
+    try
+    {
+        // 检查网络
+        if (!_check_network_available())
+        {
+            WARNING_EX_LOG("Network not available,   _update_password");
+            return  "Network not available !!!";
+        }
+
+        // 创建 HTTP 客户端
+        httplib::Client cli(kHttpUrl);
+
+        // 设置超时
+        cli.set_connection_timeout(10, 0);
+        cli.set_read_timeout(30, 0);
+        cli.set_write_timeout(30, 0);
+        std::string device_id;
+        std::string device_code;
+        std::string old_password;
+        {
+            std::lock_guard<std::mutex> lock(m_lock);
+            device_id = m_device_id;
+            device_code = m_device_code;
+            old_password = m_password;
+        }
+        nlohmann::json j = {
+            {"device_id", device_id},
+            {"device_code", device_code},
+            {"old_password", password},
+            {"new_password", password}
+        
+        };
+        /*
+        
+        "device_id": "DEV-550E8400-E29B-41D4-A716-446655440000",
+  "device_code": "ABC123",
+  "old_password": "old_password_123",
+  "new_password": "new_password_456"
+        */
+        NORMAL_EX_LOG("Sending /api/v1/devices/update_password for password: %s", device_id.c_str());
+
+        auto res = cli.Post("/api/v1/devices/update_password", j.dump(), "application/json");
+
+        //  检查响应
+        if (!res)
+        {
+            WARNING_EX_LOG("update_password failed: No response %s", j.dump().c_str());
+            return "update_password failed: No response !!!";
+        }
+
+        if (res->status != 200)
+        {
+            WARNING_EX_LOG("update_password failed: HTTP %d, %s", res->status, j.dump().c_str());
+            return "update_password failed: HTTP ";
+        }
+
+        try
+        {
+            NORMAL_EX_LOG("update password :body : %s", res->body.c_str());
+            nlohmann::json response = nlohmann::json::parse(res->body);
+
+            
+            // 检查响应结构：服务器返回 {code, message, data}
+            if (response.contains("code") && response["code"].is_number())
+            {
+                int code = response["code"].get<int>();
+                if (code == 0 )
+                {
+                    NORMAL_EX_LOG("update_password successful ");
+                    std::lock_guard<std::mutex> lock(m_lock);
+                    m_password = password;
+                    _write_system_data();
+
+                    NORMAL_EX_LOG("Device registered successfully (legacy format), device_id: %s, password: %s", m_device_id.c_str(), m_password.c_str());
+                    return "update_password successful";
+                }
+            }
+            return "server error !!!";
+        }
+        catch (const nlohmann::json::exception& e)
+        {
+            ERROR_EX_LOG("JSON parse error: %s", e.what());
+            ERROR_EX_LOG("Response body: %s", res->body.c_str());
+            return "JSON parse error: !!!";
+        }
+       
+
+    }
+    catch (const std::exception& e)
+    {
+        ERROR_EX_LOG("update_password exception: %s", e.what());
+        return "update_password exception !!!";
+    }
+    catch (...)
+    {
+        ERROR_EX_LOG("Unknown exception during update_password");
+        return "Unknown exception during update_password";
+    }
+}
+
 
 void DeskLogic::_work_thread()
 {
     NORMAL_EX_LOG("DeskLogic work thread started");
-    
+   // NamedPipeServer server("DeskServicePipe");
     try
     {
         
-        
+        //if (!server.Start()) 
+        //{
+        //    WARNING_EX_LOG("local socket start failed !!!");
+        //                //Sleep(1000);
+        //                //continue;
+        //}
+            //
+            //        // 接收客户端请求
+            //        std::string request = server.ReceiveMessage();
+            //        std::cout << "收到请求: " << request << std::endl;
+            //
+            //        // 处理请求...
+            //        server.SendMessage("Response from service: " + request);
+            //
+            //        server.Close();
+            //        Sleep(100);
         // 心跳循环
         while (!m_stoped)
         {
@@ -900,7 +1037,12 @@ void DeskLogic::_work_thread()
                     {
                         ERROR_EX_LOG("Network not available, device registration skipped");
                     }
-                    libcrtc_init(kIp, kPort, m_token_device.c_str());
+                    std::string token_device;
+                    {
+                        std::lock_guard<std::mutex> lock(m_lock);
+                        token_device = m_token_device;
+                    }
+                    libcrtc_init(kIp, kPort, token_device.c_str());
                 }
                 std::this_thread::sleep_for(std::chrono::seconds(3));
                 
@@ -925,6 +1067,37 @@ void DeskLogic::_work_thread()
     }
     
     NORMAL_EX_LOG("DeskLogic work thread stopped");
+}
+
+void DeskLogic::_update_password_thread()
+{
+    NORMAL_EX_LOG("DeskLogic _update_password_thread thread started");
+    NamedPipeServer server("DeskServicePipe");
+     
+
+        
+        while (!m_stoped)
+        {
+            if (!server.Start())
+            {
+                WARNING_EX_LOG("local socket start failed !!!");
+                Sleep(1000);
+                continue;
+            }
+            //
+                   
+                  std::string request = server.ReceiveMessage();
+                  NORMAL_EX_LOG("receive request: %s", request.c_str());
+                  
+                  //std::cout << "receive request: " << request << std::endl;
+          
+                  // 处理请求...
+                  server.SendMessage(_update_password(request));
+          //
+                  server.Close();
+                  Sleep(10);
+        }
+        
 }
 
 } // namespace chen
