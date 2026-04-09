@@ -919,7 +919,7 @@ std::string DeskLogic::_update_password(const std::string& password)
         nlohmann::json j = {
             {"device_id", device_id},
             {"device_code", device_code},
-            {"old_password", password},
+            {"old_password", old_password},
             {"new_password", password}
         
         };
@@ -932,7 +932,7 @@ std::string DeskLogic::_update_password(const std::string& password)
         */
         NORMAL_EX_LOG("Sending /api/v1/devices/update_password for password: %s", device_id.c_str());
 
-        auto res = cli.Post("/api/v1/devices/update_password", j.dump(), "application/json");
+        auto res = cli.Put("/api/v1/devices/update_password", j.dump(), "application/json");
 
         //  检查响应
         if (!res)

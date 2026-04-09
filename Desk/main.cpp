@@ -72,9 +72,9 @@ static void UpdatePassword(int argc, char* argv[])
 {
     for (size_t i = 0; i < argc; ++i)
     {
-        printf("%lu， %s\n", i, argv[i]);
+        printf("%lu，= %s\n", i, argv[i]);
     }
-    if (argv[1] == "-setpasswd")
+    if (std::string(argv[1]) == "-setpasswd")
     {
         std::string password = argv[2];
         if (!CheckPassword(password))
@@ -112,7 +112,7 @@ int main(int argc, char* argv[])
     printf("argc = %u\n", argc);
 
 
-    if (argc > 2)
+    if (argc > 1)
     {
         UpdatePassword(argc, argv);
         return 0;
