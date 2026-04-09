@@ -70,12 +70,8 @@ static bool CheckPassword(const std::string& p)
 
 static void UpdatePassword(int argc, char* argv[])
 {
-    for (size_t i = 0; i < argc; ++i)
-    {
-        printf("%lu，= %s\n", i, argv[i]);
-    }
-    if (std::string(argv[1]) == "-setpasswd")
-    {
+    
+    
         std::string password = argv[2];
         if (!CheckPassword(password))
         {
@@ -93,11 +89,7 @@ static void UpdatePassword(int argc, char* argv[])
             std::cout << "connect server failed !!!" << std::endl;
         }
         //    
-    }
-    else
-    {
-        printf("Unknown type !!!");
-    }
+    
 
 
 
@@ -110,13 +102,23 @@ static void UpdatePassword(int argc, char* argv[])
 int main(int argc, char* argv[])
 {
     printf("argc = %u\n", argc);
-
-
-    if (argc > 1)
+    for (size_t i = 0; i < argc; ++i)
     {
-        UpdatePassword(argc, argv);
+        printf("%lu，= %s\n", i, argv[i]);
+    }
+    if (argc <= 1)
+    {
         return 0;
     }
+    if (std::string(argv[1]) == "-setpasswd")
+    {
+        UpdatePassword(argc, argv);
+    }
+    else if (std::string(argv[1]) == "-start")
+    {
+    
+    
+     
 
 
 
@@ -250,7 +252,11 @@ int main(int argc, char* argv[])
     clog::destroy();
     
     NORMAL_EX_LOG("Desk Application Stopped");
-    
+    }
+    else
+    {
+        printf("Unknown type !!!");
+    }
     // 如果是被服务请求关闭，返回特殊退出码
     // 这样服务就知道是正常关闭，而不是崩溃
     return 0;
