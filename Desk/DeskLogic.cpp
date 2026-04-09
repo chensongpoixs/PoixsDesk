@@ -446,11 +446,11 @@ static void librtc_status_callback(ECrtcType type)
             break;
         case chen::ECrtcConnectFailed:
             WARNING_EX_LOG("rtc_status callbac ECrtcConnectFailed !!!");
-          //  m_pushing = false;
+            g_g_pushing = false;
             break;
         case chen::ECrtcDes:
             WARNING_EX_LOG("rtc_status callbac ECrtcDes !!!");
-          //  m_pushing = false;
+            g_g_pushing = false;
             break;
         default:
             NORMAL_EX_LOG("rtc_status callbac init !!!");
@@ -884,7 +884,7 @@ void DeskLogic::_work_thread()
             NORMAL_EX_LOG("Waiting 5 minutes before next heartbeat...");
             
             // 等待5分钟或停止信号
-            for (int i = 0; i < 100 && !m_stoped; ++i)
+            for (int i = 0; i < 20 && !m_stoped; ++i)
             {
                 if (!g_g_pushing)
                 {
