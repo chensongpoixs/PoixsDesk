@@ -250,7 +250,7 @@ namespace chen {
 		rtc_stream_name_ = rtc_streamname;
 		//rtc_url_ = rtc_url;
 		//rtc_url_ = "webrtc:://127.0.0.1/live/test2222";
-		//printf("rtc_ip_=%s, rtc_port = %u, rtc_app = %s, rtc_stream_name =%s\n", rtc_ip_.c_str(), rtc_port_, rtc_app_.c_str(), rtc_stream_name_.c_str());
+		NORMAL_EX_LOG("rtc_ip_=%s, rtc_port = %u, rtc_app = %s, rtc_stream_name =%s\n", rtc_ip_.c_str(), rtc_port_, rtc_app_.c_str(), rtc_stream_name_.c_str());
 		//while (!m_stoped)
 		{
 			pre_time = std::chrono::steady_clock::now();
@@ -405,7 +405,7 @@ namespace chen {
 		};
 		std::string http_url = "http://" + rtc_ip_ + ":" + std::to_string(rtc_port_);
 		httplib::Client cli(http_url);
- 
+		NORMAL_EX_LOG("[http_url = %s][data =%s]", http_url.c_str(), data.dump().c_str());
 		auto res = cli.Post("/api/rtc/push", data.dump(), "application/json");
 		if (res && res->status == 200) {
 			std::cout << "Response: " << res->body << std::endl;
@@ -418,6 +418,8 @@ namespace chen {
 			catch (const std::exception&)
 			{
 				ERROR_EX_LOG("request /rtc/push    [msg = %s] json parse failed !!!", res->body.c_str());
+				std::this_thread::sleep_for(std::chrono::seconds(1));
+				::abort();
 				return;
 			}
 
@@ -432,6 +434,9 @@ namespace chen {
 		}
 		else {
 			std::cout << "Error in response" << std::endl;
+			ERROR_EX_LOG("request /rtc/push    Error in response failed !!!" );
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+			::abort();
 		}
 #else 
 		httplib::Client cli("http://192.168.9.172:80");

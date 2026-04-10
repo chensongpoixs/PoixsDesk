@@ -330,7 +330,7 @@ namespace chen {
 
 #define  OFFICIAL_SERVER  (1)
 
-#if 1
+#if 0
     static const char* kIp = "192.168.9.139";
     static const uint16_t kPort = 9010;
 
@@ -340,14 +340,15 @@ static const char* kHttpUrl = "http://192.168.9.139:9010";
     
 
     static const char* kIp = "112.80.31.194";
-    static const uint16_t kPort = 20708;
+    static const uint16_t kPort = 20913;
+   // 
 
 
     static const char* kHttpUrl = "http://112.80.31.194:20913";
 #else 
     static const char* kIp = "112.80.31.194";
-    static const uint16_t kPort = 20913;
-
+   
+    static const uint16_t kPort = 20708;
 
     static const char* kHttpUrl = "http://112.80.31.194:20913";
 #endif 
@@ -1020,11 +1021,14 @@ void DeskLogic::_work_thread()
         {
             NORMAL_EX_LOG("Waiting 5 minutes before next heartbeat...");
             
-            // 等待5分钟或停止信号
-            for (int i = 0; i < 20 && !m_stoped; ++i)
-            {
+             
                 if (!g_g_pushing)
                 {
+                    if (m_stoped)
+                    {
+                        break;
+                    }
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
                     // push -->
                     g_g_pushing = true;
                     // 等待网络可用（最多60秒）
@@ -1044,17 +1048,21 @@ void DeskLogic::_work_thread()
                     }
                     libcrtc_init(kIp, kPort, token_device.c_str());
                 }
-                std::this_thread::sleep_for(std::chrono::seconds(3));
+                else{
+                    if (m_stoped)
+                    {
+                        break;
+                    }
+                    std::this_thread::sleep_for(std::chrono::seconds(5));
+                    // 发送心跳
+                    _heartbeat_device();
+                }
+
                 
-            }
             
-            if (m_stoped)
-            {
-                break;
-            }
             
-            // 发送心跳
-            _heartbeat_device();
+            
+            
         }
     }
     catch (const std::exception& e)
