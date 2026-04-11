@@ -549,7 +549,7 @@ bool DeskLogic::_check_network_available()
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     
-    int ret = getaddrinfo(kIp, "9010", &hints, &result);
+    int ret = getaddrinfo(kIp, std::to_string(kPort).c_str(), &hints, &result);
     if (ret == 0)
     {
         freeaddrinfo(result);
@@ -598,11 +598,12 @@ void DeskLogic::_register_device()
         NORMAL_EX_LOG("Starting device registration...");
         
         // 检查网络
-        if (!_check_network_available())
+        /*if (!_check_network_available())
         {
             WARNING_EX_LOG("Network not available, skipping registration");
+
             return;
-        }
+        }*/
         
         // 创建 HTTP 客户端
         httplib::Client cli(kHttpUrl);
@@ -723,6 +724,9 @@ void DeskLogic::_register_device()
         if (!res)
         {
             ERROR_EX_LOG("Registration failed: No response (network error or timeout)");
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            exit(-1);
+            abort();
             return;
         }
         
@@ -736,6 +740,9 @@ void DeskLogic::_register_device()
             {
                 ERROR_EX_LOG("Response body: %s", res->body.c_str());
             }
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            exit(-1);
+            abort();
             return;
         }
         
@@ -798,6 +805,9 @@ void DeskLogic::_register_device()
                     // 错误响应
                     std::string message = get_string_value(response, "message");
                     ERROR_EX_LOG("Registration failed with code %d: %s", code, message.c_str());
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                    exit(-1);
+                    abort();
                 }
             }
             else
@@ -823,15 +833,25 @@ void DeskLogic::_register_device()
         {
             ERROR_EX_LOG("JSON parse error: %s", e.what());
             ERROR_EX_LOG("Response body: %s", res->body.c_str());
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            exit(-1);
+            abort();
+           
         }
     }
     catch (const std::exception& e)
     {
         ERROR_EX_LOG("Registration exception: %s", e.what());
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        exit(-1);
+        abort();
     }
     catch (...)
     {
         ERROR_EX_LOG("Unknown exception during registration");
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        exit(-1);
+        abort();
     }
 }
 
@@ -841,11 +861,11 @@ void DeskLogic::_heartbeat_device()
     try
     {
         // 检查网络
-        if (!_check_network_available())
-        {
-            WARNING_EX_LOG("Network not available, skipping heartbeat");
-            return;
-        }
+       // if (!_check_network_available())
+       // {
+       //     WARNING_EX_LOG("Network not available, skipping heartbeat");
+       //     return;
+       // }
         
         // 创建 HTTP 客户端
         httplib::Client cli(kHttpUrl);
@@ -895,11 +915,11 @@ std::string DeskLogic::_update_password(const std::string& password)
     try
     {
         // 检查网络
-        if (!_check_network_available())
-        {
-            WARNING_EX_LOG("Network not available,   _update_password");
-            return  "Network not available !!!";
-        }
+       // if (!_check_network_available())
+       // {
+       //     WARNING_EX_LOG("Network not available,   _update_password");
+       //     return  "Network not available !!!";
+       // }
 
         // 创建 HTTP 客户端
         httplib::Client cli(kHttpUrl);
@@ -1028,19 +1048,19 @@ void DeskLogic::_work_thread()
                     {
                         break;
                     }
-                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                    std::this_thread::sleep_for(std::chrono::seconds(4));
                     // push -->
                     g_g_pushing = true;
                     // 等待网络可用（最多60秒）
-                    if (_wait_for_network(60))
-                    {
+                    /*if (_wait_for_network(60))
+                    {*/
                         // 尝试注册设备
                         _register_device();
-                    }
+                   /* }
                     else
                     {
                         ERROR_EX_LOG("Network not available, device registration skipped");
-                    }
+                    }*/
                     std::string token_device;
                     {
                         std::lock_guard<std::mutex> lock(m_lock);
