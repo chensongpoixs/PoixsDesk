@@ -476,8 +476,11 @@ namespace chen {
 	void crtc_client::connect_rtc_failed()
 	{
 		m_status = ERtc_Reset;
-		m_rtc_status_callback(ECrtcConnectFailed);
+		
 		WARNING_EX_LOG("rtc failed !!!");
+		std::this_thread::sleep_for(std::chrono::seconds(2));
+		abort();
+		m_rtc_status_callback(ECrtcConnectFailed);
 	}
 
 	void crtc_client::_presssmsg(std::list<std::string>& msgs)
