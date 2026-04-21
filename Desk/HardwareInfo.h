@@ -92,6 +92,7 @@ struct HardwareInfoObject {
 class DeviceInfo {
 public:
     std::string     deviceId;     // 设备ID（客户端和服务端使用同一个 ID）
+    std::string     deviceName;   // 设备名称（本机计算机名称，对应 device_name）
     std::string     password;     // 设备密码
     std::string     ipAddress;    // IP 地址
     std::string     macAddress;   // MAC 地址
@@ -106,6 +107,7 @@ public:
 
     // 分方法初始化，方便在不同地方单独调用
     bool InitNetworkInfo();      // 初始化 mac_address & ip_address
+    bool InitDeviceName();       // 初始化 device_name
     bool InitCpuInfo();
     bool InitDiskInfo();
     bool InitGpuInfo();

@@ -49,6 +49,7 @@ DeviceInfo::DeviceInfo(const std::string& devId,
 
 bool DeviceInfo::InitAll() {
     bool ok = true;
+    ok = ok && InitDeviceName();
     ok = ok && InitNetworkInfo();
     ok = ok && InitCpuInfo();
     ok = ok && InitDiskInfo();
@@ -58,6 +59,16 @@ bool DeviceInfo::InitAll() {
     ok = ok && InitOsInfo();
 
     return ok;
+}
+
+bool DeviceInfo::InitDeviceName() {
+    DWORD size = 1024 + 1;
+    char nameBuf[1024 + 1] = { 0 };
+    if (!GetComputerNameA(nameBuf, &size)) {
+        return false;
+    }
+    deviceName.assign(nameBuf, size);
+    return !deviceName.empty();
 }
 
 bool DeviceInfo::InitNetworkInfo() {

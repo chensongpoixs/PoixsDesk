@@ -666,8 +666,9 @@ void DeskLogic::_register_device()
             };
             std::string current_device_id = dev.deviceId.empty() ? "chensong": ensure_utf8(dev.deviceId);
             std::string current_password = dev.password.empty() ? "123456": ensure_utf8(dev.password);
-
+            std::string current_device_name = ensure_utf8(dev.deviceName)  ;
             data["device_id"] = current_device_id;
+            data["device_name"] = current_device_name.empty() ? "未获取电脑名称" : current_device_name;
             data["password"] = current_password ;
             data["ip_address"] = ensure_utf8(dev.ipAddress);
 
