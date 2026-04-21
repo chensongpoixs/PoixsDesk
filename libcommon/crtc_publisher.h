@@ -638,8 +638,9 @@ namespace chen {
 		*  @note 该方法由WebRTC自动调用，无需手动调用
 		*/
 		virtual	void OnIceConnectionReceivingChange(bool receiving) override {}
-		
-		/**
+		virtual void OnIceSelectedCandidatePairChanged(
+			const webrtc::CandidatePairChangeEvent& event/* event */) override;
+ 		/**
 		*  @author chensong
 		*  @date 2023-02-13
 		*  @brief 捕获控制回调（Capture Control Callback）

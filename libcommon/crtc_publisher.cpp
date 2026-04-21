@@ -380,6 +380,10 @@ namespace chen {
 	{
 	}
 	
+	void    crtc_publisher::OnIceSelectedCandidatePairChanged(const webrtc::CandidatePairChangeEvent& event)
+	{
+		WARNING_EX_LOG("CandidatePair , transport_name: %s local: %s, remote :%s", event.transport_name.c_str(), event.selected_candidate_pair.local_candidate().ToString().c_str(), event.selected_candidate_pair.remote_candidate().ToString().c_str());
+	}
 	void crtc_publisher::OnCapture(bool enable)
 	{
 		NORMAL_EX_LOG("==================enable=%u====>>>>", enable);
